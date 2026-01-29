@@ -887,6 +887,29 @@ public class Helper {
     }
 
     /**
+     * Shifts MEI note diatonically by a given number of steps.
+     * Updates both the pitch name ("pname") and the octave ("oct") of the note element accordingly.
+     *
+     * @param note MEI note
+     * @param steps Number of steps that are shifted. 0 is no shift (unison) and thereby 7 is shifting an octave.
+     */
+    public static void shiftNoteDiatonicly(Element note, int steps) {
+        List<String> names = Arrays.asList( "c", "d", "e", "f", "g", "a", "b" );
+        String noteName = note.getAttributeValue("pname").toLowerCase();
+        int index = names.indexOf(noteName);
+        int shift = (index + steps);
+        int shiftedOctaves = (int) Math.floor((float)shift / 7.0F);     // floor down as the "0"-octave is [0..6]
+        int oct = Integer.parseInt(note.getAttributeValue("oct"));
+        note.addAttribute(new Attribute("oct", String.valueOf(oct + shiftedOctaves)));
+
+        int shiftedIndex = shift % names.size();
+        if (shiftedIndex < 0)                                   // modulo could be negativ
+            shiftedIndex += names.size();
+        String shiftedNoteName = names.get(shiftedIndex);
+        note.addAttribute(new Attribute("pname", shiftedNoteName));
+    }
+
+    /**
      * converts an mei pname to a midi pitch number in the first midi octave
      * @param pname the pname string
      * @return the midi pitch number in the first midi octave (one octave below the first MEI CMN octave)
