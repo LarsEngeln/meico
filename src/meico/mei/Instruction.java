@@ -6,6 +6,10 @@ import nu.xom.ParentNode;
 
 import java.util.ArrayList;
 
+/**
+ * This class represents an ornaments instruction by managing the notes to played for the very ornament.
+ * @author Lars Engeln
+ */
 public class Instruction {
     private MeiElement element;
     private MeiElement graceGrpElement;
