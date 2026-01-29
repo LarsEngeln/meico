@@ -245,6 +245,21 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
     }
 
     /**
+     * adds instructive readings for ornaments with graceNotes for the audio rendering only
+     */
+    public Mei instructify() {
+        return instructify(false);
+    }
+
+    /**
+     * adds instructive readings for ornaments
+     * @param display decides whether to add a <lem> with a through-composed reading, or just adding a reading with graceNotes for the audio rendering
+     */
+    public Mei instructify(boolean display) {
+        return (new MeiInstructifier()).instructify(this, display);
+    }
+
+    /**
      * convert MEI to SVG
      * @return
      */
@@ -834,6 +849,8 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
      * @return the layer element or null if ofThis is not in a layer
      */
     protected static Element getLayer(Element ofThis) {
+        if(ofThis.getDocument() == null) // prevents nullptr-exc if no document is set. This can happen if the element is created during processing (e.g. in a Converter)
+            return null;
         for (Node e = ofThis.getParent(); e != ofThis.getDocument().getRootElement(); e = e.getParent()) {  // search for a layer element among the parents of ofThis
             if ((e instanceof Element) && (((Element)e).getLocalName().equals("layer")))                    // found one
                 return (Element)e;
