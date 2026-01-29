@@ -46,6 +46,43 @@ public class Helper {
     }
 
     /**
+     * find child of parent by id
+     * @param parent
+     * @param id
+     * @return
+     */
+    public static Element findChild(Element parent, String id) {
+        return findChild(parent, id, "id");
+    }
+
+    /**
+     * find child in parent where the attribute's value equals value
+     * @param parent
+     * @param value
+     * @param attribute
+     * @return
+     */
+    public static Element findChild(Element parent, String value, String attribute) {
+        LinkedList<Element> children = Helper.getAllChildElements(parent);
+        for (int i = 0; i < children.size(); ++i) {
+            Element el = children.get(i);
+            if(Helper.getAttribute(attribute, el) != null) {
+                String val = Helper.getAttributeValue(attribute, el);
+                if (val.equals(value))
+                    return el;
+            }
+            Element child = findChild(el, value, attribute);
+            if(child != null)
+                return child;
+        }
+        return null;
+    }
+
+    public static Element findSibling(Element node, String id) {
+        return Helper.findChild(Helper.getParentElement(node), id);
+    }
+
+    /**
      * get the first child of an xml element
      * @param ofThis
      * @return
@@ -380,13 +417,59 @@ public class Helper {
     }
 
     /**
+     * creates an Element with localName and UUID
+     * @param localName
+     * @return
+     */
+    public static Element createElement(String localName) {
+        return Helper.createElement(localName, false);
+    }
+    /**
+     * creates an Element with localName and UUID
+     * @param localName the MEI name
+     * @param shortUUID indicates to give a short UUID or not
+     * @return
+     */
+    public static Element createElement(String localName, boolean shortUUID) {
+        Element e = new Element(localName);
+        Helper.addUUID(e, shortUUID);
+        return e;
+    }
+
+    /**
+     * appends child directly after sibling to sibling's parent
+     * @param child
+     * @param sibling
+     */
+    public static void appendChildAfterSibling(Element child, Element sibling) {
+        Element parent = Helper.getParentElement(sibling);
+        int index = parent.indexOf(sibling) + 1;
+        parent.insertChild(child, index);
+    }
+
+    /**
      * Add a UUID-based xml:id to the specified element.
      * Caution: If the element has already an xml:id, it will be overwritten!
      * @param toThis
      * @return
      */
     public static String addUUID(Element toThis) {
+        return addUUID(toThis, false);
+    }
+    /**
+     * Add a UUID-based xml:id to the specified element.
+     * Caution: If the element has already an xml:id, it will be overwritten!
+     * @param toThis
+     * @param shortVersion cuts the UUID to a shorter version, that might not be unique anymore
+     * @return
+     */
+    public static String addUUID(Element toThis, boolean shortVersion) {
         String uuid = "meico_" + UUID.randomUUID().toString();              // generate new id
+        if (shortVersion) {
+           String[] splitted = uuid.split("-", 2);
+           if (splitted.length > 0)
+               uuid = splitted[0];
+        }
         Attribute a = new Attribute("id", uuid);                            // create an attribute
         a.setNamespace("xml", "http://www.w3.org/XML/1998/namespace");      // set its namespace to xml
         toThis.addAttribute(a);                                             // add attribute to the element
