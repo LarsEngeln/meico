@@ -5,6 +5,12 @@ import nu.xom.Elements;
 
 import java.util.*;
 
+/**
+ * This class adds instructions for ornaments, by creating notes to be played within a <supplied></supplied> after the principal note.
+ * This is mainly for rendering via MPM.
+ * These instructions are inserted into the given MEI (the original MEI file stays untouched).
+ * @author Lars Engeln
+ */
 public class MeiInstructifier {
     public Mei mei;
     private Map<String, Instruction> instructions = new HashMap<String, Instruction>(); // ornament's startid to instruction

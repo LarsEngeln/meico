@@ -7,6 +7,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * This class is an object-oriented wrapper of some Helper function. It is meant as easy access of MEI element data.
+ * @author Lars Engeln
+ */
 public class MeiElement {
     private Element element;
     private String id = "";
