@@ -1,0 +1,54 @@
+% This is the ornaments dictionary.
+% It associates note alterations (one per line) with the ornament "full"name (defined in the lines that start with #)
+% repetitions (e.g. in trills) are marked with |: (repetition start) and :| (repetition end) in own lines, enclosing the lines that are to repeated undefined times
+
+% trill
+# trill
+|:
+0
+1
+:|
+
+% upper turn
+# upper turn
+1
+0
+-1
+0
+
+% lower turn
+#lower turn
+-1
+0
+1
+0
+
+% upper mordent
+# upper mordent
+0
+1
+0
+
+% lower mordent
+# lower mordent
+0
+-1
+0
+
+% trill with mordent
+# trill with mordent
+|:
+1
+0
+:|
+-1
+0
+
+% double cadence lower prefix
+# double cadence lower prefix
+-1
+0
+|:
+1
+0
+:|
