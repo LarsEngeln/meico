@@ -3,6 +3,10 @@ package meico.mei;
 import nu.xom.Element;
 import nu.xom.Elements;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 
 /**
@@ -14,32 +18,25 @@ import java.util.*;
 public class MeiInstructifier {
     public Mei mei;
     private Map<String, Instruction> instructions = new HashMap<String, Instruction>(); // ornament's startid to instruction
-    private Map<String, List<Integer>> ornamentLookup = new HashMap<String, List<Integer>>();
+    private Map<String, List<String>> ornamentLookup = new HashMap<String, List<String>>();
 
     private ArrayList<String> prevOrnams = new ArrayList<String>(); // already instructified ornams with that are "previous" to another ornam
     private Map<String, Element> nextOrnams = new HashMap<String, Element>(); // prevId to nextElement - remember "next" ornament to be processed, if "prev"-Id have not been processed yet - so, if "prev"/"next" is not well sorted in the MEI
 
     public MeiInstructifier(Mei mei) {
-        createOrnamentLookUp();
+        try {
+            createOrnamentLookUp();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    public MeiInstructifier() {
-        createOrnamentLookUp();
-    }
-
-    /**
-     * creates the lookUp table with ornament descriptions. Names for lookUp are identical to getOrnamentFullName results
-     */
-    private void createOrnamentLookUp() {
-        ornamentLookup.put("trill", Arrays.asList(0, 1, 0, 1));
-        ornamentLookup.put("turn", Arrays.asList(1, 0, -1, 0));
-        ornamentLookup.put("upper turn", Arrays.asList(1, 0, -1, 0));
-        ornamentLookup.put("lower turn", Arrays.asList(-1, 0, 1, 0));
-        ornamentLookup.put("mordent", Arrays.asList(0, 1, 0));
-        ornamentLookup.put("upper mordent", Arrays.asList(0, 1, 0));
-        ornamentLookup.put("lower mordent", Arrays.asList(0, -1, 0));
-        ornamentLookup.put("trill with mordent", Arrays.asList(1, 0, 1, 0, 1, 0, -1, 0));
-        ornamentLookup.put("double cadence lower prefix", Arrays.asList(-1, 0, 1, 0, 1, 0));
+    public MeiInstructifier()  {
+        try {
+            createOrnamentLookUp();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -182,7 +179,7 @@ public class MeiInstructifier {
 
         instruction.setLabel(ornamentName);
 
-        List<Integer> alterations = ornamentLookup.get(ornamentName);
+        List<String> alterations = ornamentLookup.get(ornamentName);
 
         int pnDur = Integer.parseInt(principalNote.get("dur"));
         int noteDuration = 32; //pnDur * 4;
@@ -196,12 +193,32 @@ public class MeiInstructifier {
         boolean isFirstUpper = upperAccid != null;
         boolean isFirstLower = lowerAccid != null;
 
-        for (Integer alteration : alterations) {
+        for (String alterationEntry : alterations) {
+            if(alterationEntry.equals("|:")) {
+                MeiElement repeat = new MeiElement("barLine");
+                repeat.set("form", "rptstart");
+                instruction.addNote(repeat);
+                continue;
+            }
+            if(alterationEntry.equals(":|")) {
+                MeiElement repeat = new MeiElement("barLine");
+                repeat.set("form", "rptend");
+                instruction.addNote(repeat);
+                continue;
+            }
+            if(alterationEntry.equals(":|:")) {
+                MeiElement repeat = new MeiElement("barLine");
+                repeat.set("form", "rptboth");
+                instruction.addNote(repeat);
+                continue;
+            }
+
             MeiElement note = new MeiElement("note");
             note.set("dur", String.valueOf(noteDuration));
             note.set("oct", String.valueOf(principalNote.get("oct")));
             note.set("pname", principalNote.get("pname"));
 
+            int alteration = Integer.parseInt(alterationEntry);
             Helper.shiftNoteDiatonicly(note.getElement(), alteration);
 
             switch (alteration) {
@@ -290,5 +307,45 @@ public class MeiInstructifier {
             nextOrnams.remove(ornament.get("next")); // remove myself if I was in there
             instructifyElement(nextOrnam);
         }
+    }
+
+    /**
+     * creates the lookUp table with ornament descriptions. Names for lookUp are identical to getOrnamentFullName results
+     */
+    private void createOrnamentLookUp() throws IOException, NullPointerException {
+        this.ornamentLookup = new HashMap<String, List<String>>();
+
+        // open input stream
+        InputStream is = getClass().getResourceAsStream("/resources/ornaments.dict");
+        if(is == null)
+            return;
+
+        // initialize the readers with the input stream
+        InputStreamReader ir = new InputStreamReader(is);
+        BufferedReader br = new BufferedReader(ir);
+
+        // build (key, value) pairs where the key is the ornament name string and value is the List of alterations and add them to the dict map
+        String ornamentName = "";
+        List<String> alterations = new ArrayList<String>();
+        for(String line = br.readLine(); line != null; line = br.readLine()) {  // read all the lines in *.dict
+            if (line.isEmpty()                                                  // an empty line
+                    || (line.charAt(0) == '%'))                                     // this is a comment line
+                continue;                                                       // ignore it
+
+            if (line.charAt(0) == '#') {                                        // this is an ornament name line, it specifies that all further lines will be associated with it until an ornament line is read
+                ornamentName = line.substring(1).trim();                     // switch the ornamentName variable, delete any spaces in the string beforehand so that "# trill " -> "trill"
+                alterations = new ArrayList<String>();
+                ornamentLookup.put(ornamentName, alterations);
+                continue;
+            }
+
+            line = line.replaceAll("\\s+", "");                           // replaces
+            alterations.add(line);                                               // add alteration to current list
+        }
+
+        // close readers and input stream
+        br.close();
+        ir.close();
+        is.close();
     }
 }
