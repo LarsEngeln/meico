@@ -236,6 +236,12 @@ public class MeiInstructifier {
                     break;
             }
 
+            if(alteration >= 0)
+                alteration = alteration + 1;
+            else
+                alteration = alteration - 1;
+            note.set("intm", String.valueOf(alteration));
+
             instruction.addNote(note);
         }
 
