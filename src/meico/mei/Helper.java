@@ -417,6 +417,22 @@ public class Helper {
     }
 
     /**
+     * removes all attributes fromThis element, but keeps the attributes listed in exceptThese
+     * @param fromThis
+     * @param exceptThese e.g. Arrays.asList("accid", "pname", "oct", "dur", "id")
+     */
+    public static void removeAllAttributes(Element fromThis, List<String> exceptThese) {
+        for(int i = 0; i < fromThis.getAttributeCount();) {
+            Attribute attr = fromThis.getAttribute(i);
+            if(exceptThese.contains(attr.getLocalName())) {
+                i++;
+                continue;
+            }
+            fromThis.removeAttribute(attr);
+        }
+    }
+
+    /**
      * creates an Element with localName and UUID
      * @param localName
      * @return
