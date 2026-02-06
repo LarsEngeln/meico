@@ -926,6 +926,34 @@ public class Helper {
     }
 
     /**
+     * returns halfsteps according to c (from c to pname)
+     * @param pname
+     * @return
+     */
+    public static int getHalfstepsFromC(String pname) {
+        switch(pname.toLowerCase()) {
+            case "c": return 0;
+            case "d": return 2;
+            case "e": return 4;
+            case "f": return 5;
+            case "g": return 7;
+            case "a": return 9;
+            case "b": return 11;
+            default:  return 0;
+        }
+    }
+
+    /**
+     * returns halfsteps between pname1 and pname2 (always positive)
+     * @param pname1
+     * @param pname2
+     * @return
+     */
+    public static int getHalfstepsBetween(String pname1, String pname2) {
+        return Math.abs(getHalfstepsFromC(pname2) - getHalfstepsFromC(pname1));
+    }
+
+    /**
      * converts an mei pname to a midi pitch number in the first midi octave
      * @param pname the pname string
      * @return the midi pitch number in the first midi octave (one octave below the first MEI CMN octave)
