@@ -23,6 +23,9 @@ public class MeiInstructifier {
     private ArrayList<String> prevOrnams = new ArrayList<String>(); // already instructified ornams with that are "previous" to another ornam
     private Map<String, Element> nextOrnams = new HashMap<String, Element>(); // prevId to nextElement - remember "next" ornament to be processed, if "prev"-Id have not been processed yet - so, if "prev"/"next" is not well sorted in the MEI
 
+    private Map<String, Map<String, String>> currentAccids = new HashMap<>(); // all accids in the current measure, "oct"->"pname"->"accid"
+    private Map<String, String> currentKey = new HashMap<>(); // accids of the current key, "pname"->"accid"
+
     public MeiInstructifier(Mei mei) {
         try {
             createOrnamentLookUp();
@@ -90,6 +93,27 @@ public class MeiInstructifier {
                 case "ornam":
                     instructifyElement(e);
                     continue;
+
+                case "keySig":
+                    currentKey = new HashMap<>();
+                    break;
+                case "keyAccid":
+                    MeiElement keyAccid = new MeiElement(e);
+                    currentKey.put(keyAccid.get("pname"), keyAccid.get("accid"));
+                    continue;
+                case "measure":
+                    currentAccids = new HashMap<>();
+                case "note":
+                    MeiElement note = new MeiElement(e);
+                    String accid = note.get("accid");
+                    if(accid == null || accid.isEmpty())
+                       break;
+                    if(!currentAccids.containsKey(note.get("oct")))
+                        currentAccids.put(note.get("oct"), new HashMap<>());
+                    currentAccids.get(note.get("oct")).put(note.get("pname"), accid);
+                    break;
+                case "accid":
+                    break;
 
                 //default:
                 //    continue;                                                   // ignore it and its children
@@ -186,7 +210,7 @@ public class MeiInstructifier {
         //if (noteDuration <= 8)
         //     noteDuration = 16;
 
-        String principalAccid = principalNote.get("accid");
+        String principalAccid = getCurrentAccid(principalNote);
         String upperAccid = ornament.get("accidupper");
         String lowerAccid = ornament.get("accidlower");
         boolean isFirstPrincipal = principalAccid != null;
@@ -220,6 +244,7 @@ public class MeiInstructifier {
 
             int alteration = Integer.parseInt(alterationEntry);
             Helper.shiftNoteDiatonicly(note.getElement(), alteration);
+            note.set("accid", getCurrentAccid(note));                   // explicitly set the accid
 
             switch (alteration) {
                 case 0:
@@ -236,16 +261,53 @@ public class MeiInstructifier {
                     break;
             }
 
-            if(alteration >= 0)
-                alteration = alteration + 1;
-            else
-                alteration = alteration - 1;
-            note.set("intm", String.valueOf(alteration));
+            double halfsteps = getHalfstepsBetween(principalNote, note);
+            note.set("intm", String.valueOf(halfsteps)+"hs");
 
             instruction.addElement(note);
         }
 
         return instruction;
+    }
+
+    /**
+     * returns the halfsteps between principalNote and auxiliryNote
+     * @param principalNote
+     * @param auxiliaryNote
+     * @return
+     */
+    private double getHalfstepsBetween(MeiElement principalNote, MeiElement auxiliaryNote) {
+        double halfsteps = 0.0;
+
+        String priAccid = getCurrentAccid(principalNote);
+        String auxAccid = getCurrentAccid(auxiliaryNote);
+
+        halfsteps = Helper.getHalfstepsBetween(principalNote.get("pname"), auxiliaryNote.get("pname"));
+        halfsteps = halfsteps + (12 * (Integer.parseInt(auxiliaryNote.get("oct")) - Integer.parseInt(principalNote.get("oct"))));
+
+        halfsteps = halfsteps - Helper.accidString2decimal(priAccid);
+        halfsteps = halfsteps + Helper.accidString2decimal(auxAccid);
+
+        return halfsteps;
+    }
+
+    /**
+     * returns the current accid for the note. If note has no accid, the measure's accid (with fallback to the current key) will be returned.
+     * @param note
+     */
+    private String getCurrentAccid(MeiElement note) {
+        if(note.has("accid"))
+            return note.get("accid");
+
+        String accid = "";
+        if(currentAccids.containsKey(note.get("oct")) && currentAccids.get(note.get("oct")).containsKey(note.get("pname"))) {
+            accid = currentAccids.get(note.get("oct")).get(note.get("pname"));
+        }
+        else if(currentKey.containsKey(note.get("pname"))) {
+            accid = currentKey.get(note.get("pname"));
+        }
+
+        return accid;
     }
 
     /**
