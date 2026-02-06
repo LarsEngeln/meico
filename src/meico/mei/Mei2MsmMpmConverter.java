@@ -4047,10 +4047,13 @@ public class Mei2MsmMpmConverter {
     protected double computePitch(Element ofThis, ArrayList<String> pitchdata) {
         String pname;                                                   // the attribute strings
         String accid = "";                                              // the accidental string
-        String layerId = Mei.getLayerId(Mei.getLayer(ofThis));                  // get the current layer's id reference
+        String layerId = "";                                            // the current layer's id reference, defaults to have no layer
         double oct = 0.0;                                               // octave transposition value
         double trans = 0;                                               // transposition
         boolean checkKeySign = false;                                   // is set true
+
+        if(ofThis.getDocument() != null)
+            layerId = Mei.getLayerId(Mei.getLayer(ofThis));             // get the current layer's id reference
 
         // get the attributes, prefer gesturals
 
