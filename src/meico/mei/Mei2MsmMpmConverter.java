@@ -33,9 +33,9 @@ import java.util.*;
  * To use it, instantiate it with the constructor, then invoke convert().
  * See method meico.mei.Mei.exportMsmMpm() for some sample code.
  * @author Axel Berndt
+ * @author Lars Engeln
  */
 public class Mei2MsmMpmConverter {
-    private Helper helper;                          // some variables and methods to make life easier
     private Mei mei = null;                         // the MEI to be converted
     private boolean ignoreExpansions = false;       // set this true to have a 1:1 conversion of MEI to MSM without the rearrangement that MEI's expansion elements produce
     private boolean cleanup = true;                 // set true to return a clean msm file or false to keep all the crap from the conversion
@@ -305,7 +305,11 @@ public class Mei2MsmMpmConverter {
                     continue;                                                   // TODO: What to do with this?
 
                 case "gliss":
-                    continue;                                                   // TODO: relevant for expressive performance
+                    continue;                                                   // TODO: to be treated by a supplied
+
+                case "graceGrp":
+                    this.processOrnament(e);                                    // is treated as ornament
+                    continue;
 
                 case "grpSym":
                     continue;                                                   // can be ignored
@@ -391,7 +395,7 @@ public class Mei2MsmMpmConverter {
                     continue;                                                   // ignore this tag as this converter handles midi stuff individually
 
                 case "mordent":
-                    continue;                                                   // TODO: relevant for expressive performance
+                    continue;                                                   // is treated via a supplied
 
                 case "mRest":
                     this.processMeasureRest(e);
@@ -433,6 +437,9 @@ public class Mei2MsmMpmConverter {
 
                 case "orig":                                                    // contains material which is marked as following the original, rather than being normalized or corrected
                     break;                                                      // when it does not appear in a choice environment as member of an orig-reg pair it has to be processed
+
+                case "ornam":                                                   // is treated via a supplied
+                    continue;
 
                 case "ossia":
                     continue;                                                   // TODO: ignored for the moment but may be included later on
@@ -537,6 +544,10 @@ public class Mei2MsmMpmConverter {
                     break;                                                      // process its contents
 
                 case "supplied":                                                // contains material supplied by the transcriber or editor in place of text which cannot be read, either because of physical damage or loss in the original or because it is illegible for any reason
+                    if(this.checkIfOrnament(e)) {
+                        this.processOrnament(e);
+                        continue;
+                    }
                     break;                                                      // process its content
 
                 case "syl":
@@ -564,7 +575,7 @@ public class Mei2MsmMpmConverter {
                     continue;                                                   // can be ignored
 
                 case "trill":
-                    continue;                                                   // TODO: relevant for expressive performance
+                    continue;                                                   // is treated via a supplied
 
                 case "tuplet":
                     if (this.processTuplet(e))
@@ -576,7 +587,7 @@ public class Mei2MsmMpmConverter {
                     continue;                                                   // TODO: how do I have to handle this?
 
                 case "turn":
-                    continue;                                                   // TODO: relevant for expressive performance
+                    continue;                                                   // is treated via a supplied
 
                 case "unclear":                                                 // contains material that cannot be transcribed with certainty because it is illegible or inaudible in the source
                     break;                                                      // process the contents
@@ -2702,6 +2713,219 @@ public class Mei2MsmMpmConverter {
             }
             else {                                              // otherwise the element had no tie attribute
                 note.addAttribute(new Attribute("tie", "t"));   // hence, we add an terminal tie attribute
+            }
+        }
+    }
+
+    /**
+     * check if the element is a supplied generated by meico which is a preprocessed ornament
+     * @param xmlElement
+     * @return
+     */
+    private boolean checkIfOrnament(Element xmlElement) {
+        MeiElement element = new MeiElement(xmlElement);
+        return element.getName().equals("supplied") && element.getId().startsWith("meico") && element.get("reason").startsWith("generated by meico");
+    }
+
+    /**
+     * flattens the XML tree of a graceGrp to a simple list of graceGrps. Elements like notes not being in a graceGrp will get grouped ("grp1 note1 note2 grp2 note3" will become "grp1 grp3 grp2 grp4").
+     * @param element
+     * @return
+     */
+    private ArrayList<MeiElement> flattenGraceGrp(MeiElement element) {
+        ArrayList<MeiElement> children = element.getChildren();
+        ArrayList<MeiElement> graceGrps = new ArrayList<>();
+
+        MeiElement graceGrp = new MeiElement("graceGrp");
+        for (MeiElement child : children) {
+            if(child.getName().equals("graceGrp")) {
+                if(!graceGrps.isEmpty()) {
+                    graceGrps.add(graceGrp);
+                    graceGrp = new MeiElement("graceGrp");
+                }
+
+                graceGrps.addAll(flattenGraceGrp(child));                   // flatten all children
+                continue;
+            }
+
+            graceGrp.appendChild(child);                                    // add element to a new graceGrp, if it was not a graceGrp itself
+        }
+
+        if(!graceGrps.isEmpty()) {
+            graceGrps.add(graceGrp);
+        }
+        return graceGrps;
+    }
+
+    /**
+     * process ornaments like trills, turns, graceGrps, ..
+     * @param xmlElement
+     */
+    private void processOrnament(Element xmlElement) {
+        ArrayList<Object> timingData = this.computeControlEventTiming(xmlElement, this.currentPart);
+        if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
+            return;                                                         // stop processing it right now
+
+        ArrayList<MeiElement> graceGrps = new ArrayList<>();
+        MeiElement element = new MeiElement(xmlElement);
+        String ornamentName = "";
+
+        if(element.getName().equals("supplied")) {
+            ornamentName = element.get("label");
+            ArrayList<MeiElement> children = element.getChildren();
+            graceGrps.addAll(children);                                 // by definition each child is a graceGrp
+        }
+        else if(element.getName().equals("graceGrp")) {
+            ornamentName = element.get("grace");
+            if(element.getFirstChildByName("graceGrp") == null)
+                graceGrps.add(element);
+            else {
+                graceGrps.addAll(flattenGraceGrp(element));
+            }
+        }
+
+        // create ornament data
+        OrnamentData od = new OrnamentData();
+        od.date = (Double) timingData.get(0);
+        od.ornamentDefName = ornamentName;
+        od.scale = 0.0;
+        od.notes = new ArrayList<>();
+        od.noteOrder = new ArrayList<String>();
+
+        for (MeiElement graceGrp : graceGrps) {
+            for(MeiElement elem : graceGrp.getChildren()) {
+                //if(elem.getName().equals("note"))
+
+                if(elem.getName().equals("barLine")) {
+                    Element rptElem;
+                    String rptStr = "";
+                    switch(elem.get("form")) {
+                        case "rptstart":
+                            rptElem = new Element("rptstart");
+                            rptStr = "|:";
+                            break;
+                        case "rptboth":
+                            rptElem = new Element("rptboth");
+                            rptStr = ":|:";
+
+                            break;
+                        case "rptend":
+                            rptElem = new Element("rptend");
+                            rptStr = ":|";
+                            break;
+                        default:
+                            continue;
+                    }
+                    rptElem.addAttribute(new Attribute("id", elem.getId()));
+                    od.notes.add(rptElem);
+                    od.noteOrder.add(rptStr);
+                    continue;
+                }
+
+                Element e = Helper.cloneElement(elem.getElement());
+                Helper.removeAllAttributes(e, Arrays.asList("intm", "accid", "pname", "oct", "dur", "id"));
+                e.setNamespaceURI("");
+
+                od.notes.add(e);
+                od.noteOrder.add("#" + elem.getId());
+            }
+            od.noteOrder.add("|");
+        }
+        if(!graceGrps.isEmpty()) {
+            od.noteOrder.remove(od.noteOrder.size() - 1);
+        }
+
+        addToOrnamentationMap(xmlElement, od);
+    }
+
+    private double getHalfstepsBetween(Element principalNote, Element auxiliaryNote) {
+        MeiElement pri = new  MeiElement(principalNote);
+        MeiElement aux = new  MeiElement(auxiliaryNote);
+
+        double halfsteps = 0.0;
+
+        String priAccid = "";
+        String auxAccid = "";
+
+        if(pri.has("accid")) {
+            priAccid = pri.get("accid");
+        } else {
+            for(Element accid : this.accid) {
+                MeiElement acc = new MeiElement(accid);
+                if(acc.get("pname").equals(pri.get("pname")) && acc.get("oct").equals(pri.get("oct"))) {
+                    priAccid = acc.get("accid");
+                    break;
+                }
+            }
+        }
+
+        if(aux.has("accid")) {
+            auxAccid = aux.get("accid");
+        } else {
+            for(Element accid : this.accid) {
+                MeiElement acc = new MeiElement(accid);
+                if(acc.get("pname").equals(aux.get("pname")) && acc.get("oct").equals(aux.get("oct"))) {
+                    auxAccid = acc.get("accid");
+                    break;
+                }
+            }
+        }
+
+        halfsteps = Helper.getHalfstepsBetween(pri.get("pname"), aux.get("pname"));
+        halfsteps = halfsteps + (12 * (Integer.parseInt(aux.get("oct")) - Integer.parseInt(pri.get("oct"))));
+
+        halfsteps = halfsteps - Helper.accidString2decimal(priAccid);
+        halfsteps = halfsteps + Helper.accidString2decimal(auxAccid);
+
+        return halfsteps;
+    }
+
+    private void addToOrnamentationMap(Element el, OrnamentData od) {               // TODO: use in processArpeg
+        // make sure that the ornamentationStyle is defined in a global ornamentation style of name "MEI export"
+        OrnamentationStyle ornamentationStyle = (OrnamentationStyle) this.currentPerformance.getGlobal().getHeader().getStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export"); // get the global ornamentationSyles/styleDef element
+        if (ornamentationStyle == null)                                                                                                                                         // if there is none
+            ornamentationStyle = (OrnamentationStyle) this.currentPerformance.getGlobal().getHeader().addStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export");                // create one
+        if (ornamentationStyle.getDef(od.ornamentDefName) == null)
+            ornamentationStyle.addDef(OrnamentDef.createDefaultOrnamentDef(od.ornamentDefName));
+
+        // parse the staff attribute (space separated staff numbers)
+        OrnamentationMap ornamentationMap;
+        Attribute att = el.getAttribute("part");                                                                            // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
+
+        if (att == null)                                                                                                       // if no part attribute
+            att = el.getAttribute("staff");                                                                                 // find the staffs that this is associated to
+
+        if ((att == null) || att.getValue().isEmpty() || att.getValue().equals("%all")) {                                      // if no part or staff association is defined treat it as a global instruction
+            ornamentationMap = (OrnamentationMap) this.currentPerformance.getGlobal().getDated().getMap(Mpm.ORNAMENTATION_MAP);      // get the global ornamentationMap
+            if (ornamentationMap == null) {                                                                                          // if there is no global ornamentationMap
+                ornamentationMap = (OrnamentationMap) this.currentPerformance.getGlobal().getDated().addMap(Mpm.ORNAMENTATION_MAP);  // create one
+                ornamentationMap.addStyleSwitch(0.0, "MEI export");                                                   // set its start style reference
+            }
+            int index = ornamentationMap.addOrnament(od);                                               // add it to the map
+        }
+        else {                                                                                          // there are staffs, hence, local ornament instruction
+            boolean multiIDs = false;
+            String staffString = att.getValue();
+            String[] staffs = staffString.split("\\s+");                                             // this creates an array of one or more integer strings (the staff numbers), they are separated by one or more whitespaces
+
+            for (String staff : staffs) {                                                               // go through all the part numbers
+                Part part = this.currentPerformance.getPart(Integer.parseInt(staff));                   // find that part in the performance data structure
+                if (part == null)                                                                       // if not found
+                    continue;                                                                           // continue with the next
+
+                ornamentationMap = (OrnamentationMap) part.getDated().getMap(Mpm.ORNAMENTATION_MAP);    // get the part's ornamentationMap
+                if (ornamentationMap == null) {                                                         // if it has none so far
+                    ornamentationMap = (OrnamentationMap) part.getDated().addMap(Mpm.ORNAMENTATION_MAP);// create it
+                    ornamentationMap.addStyleSwitch(0.0, "MEI export");                  // set the style reference
+                }
+
+                OrnamentData odd = od.clone();
+                if ((od.xmlId != null) && multiIDs)
+                    odd.xmlId = od.xmlId + "_meico_" + UUID.randomUUID().toString();
+
+                int index = ornamentationMap.addOrnament(odd);                                      // add it to the map
+
+                multiIDs = true;
             }
         }
     }
