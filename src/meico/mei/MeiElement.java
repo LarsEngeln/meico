@@ -3,9 +3,7 @@ package meico.mei;
 import nu.xom.Element;
 import nu.xom.Attribute;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * This class is an object-oriented wrapper of some Helper function. It is meant as easy access of MEI element data.
@@ -101,6 +99,17 @@ public class MeiElement {
         if(child == null)
             return null;
         return new MeiElement(child);
+    }
+
+    /**
+     * returns all children as MeiElements
+     * @return
+     */
+    public ArrayList<MeiElement> getChildren() {
+        LinkedList<Element> elements = Helper.getAllChildElements(this.element);
+        ArrayList<MeiElement> children = new ArrayList<>();
+        elements.forEach(elem -> children.add(new MeiElement(elem)));
+        return children;
     }
 
     /**
