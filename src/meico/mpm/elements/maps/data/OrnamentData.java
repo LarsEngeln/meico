@@ -25,6 +25,8 @@ public class OrnamentData {
     public double scale = 0.0;
     public ArrayList<String> noteOrder = null;
 
+    public ArrayList<Element> notes = null;
+
     /**
      * default constructor
      */
@@ -54,6 +56,9 @@ public class OrnamentData {
                 this.noteOrder.addAll(Arrays.asList(no.replaceAll("#", "").split("\\s+")));
         }
 
+        this.notes = new ArrayList<>();
+        xml.getChildElements("note").forEach(note -> { this.notes.add(note); });
+
         Attribute id = xml.getAttribute("id", "http://www.w3.org/XML/1998/namespace");
         if (id != null)
             this.xmlId = id.getValue();
@@ -77,6 +82,10 @@ public class OrnamentData {
         if (this.noteOrder != null) {
             clone.noteOrder = new ArrayList<>();
             clone.noteOrder.addAll(this.noteOrder);
+        }
+        if (this.notes != null) {
+           clone.noteOrder = new ArrayList<>();
+           clone.notes.addAll(this.notes);
         }
         return clone;
     }

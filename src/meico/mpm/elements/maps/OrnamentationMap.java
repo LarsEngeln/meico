@@ -83,7 +83,7 @@ public class OrnamentationMap extends GenericMap {
      * @param id set this null or leave it empty to omit it from the xml code
      * @return the index at which the element has been added
      */
-    public int addOrnament(double date, String nameRef, double scale, ArrayList<String> noteOrder, String id) {
+    public int addOrnament(double date, String nameRef, double scale, ArrayList<String> noteOrder, ArrayList<Element> childNotes, String id) {
         Element ornament = new Element("ornament", Mpm.MPM_NAMESPACE);
         ornament.addAttribute(new Attribute("date", Double.toString(date)));
         ornament.addAttribute(new Attribute("name.ref", nameRef));
@@ -98,10 +98,17 @@ public class OrnamentationMap extends GenericMap {
                     noteIdsString = nid;
                     break;
                 } else {
-                    noteIdsString = noteIdsString.concat(" #" + nid.trim().replace("#", ""));   // the replacement handles the case that the # is already in the string as we do not want to have multiple #
+                    noteIdsString = noteIdsString.concat(" " + nid.trim());
+
                 }
             }
             ornament.addAttribute(new Attribute("note.order", noteIdsString.trim()));
+        }
+
+        if((childNotes != null) && !childNotes.isEmpty()) {
+            for (Element childNote : childNotes) {
+                ornament.appendChild(childNote);
+            }
         }
 
         if ((id != null) && !id.isEmpty())
@@ -118,7 +125,7 @@ public class OrnamentationMap extends GenericMap {
      * @return the index at which the element has been added
      */
     public int addOrnament(double date, String nameRef) {
-        return this.addOrnament(date, nameRef, 1.0, null, null);
+        return this.addOrnament(date, nameRef, 1.0, null, null, null);
     }
 
     /**
@@ -133,7 +140,7 @@ public class OrnamentationMap extends GenericMap {
             System.err.println("Cannot add ornament: ornamentDef or ornamentDefName must be specified.");
             return -1;
         }
-        return this.addOrnament(data.date, data.ornamentDefName, data.scale, data.noteOrder, data.xmlId);
+        return this.addOrnament(data.date, data.ornamentDefName, data.scale, data.noteOrder, data.notes, data.xmlId);
     }
 
     /**
