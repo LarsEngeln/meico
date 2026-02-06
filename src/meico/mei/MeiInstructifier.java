@@ -197,19 +197,19 @@ public class MeiInstructifier {
             if(alterationEntry.equals("|:")) {
                 MeiElement repeat = new MeiElement("barLine");
                 repeat.set("form", "rptstart");
-                instruction.addNote(repeat);
+                instruction.addElement(repeat);
                 continue;
             }
             if(alterationEntry.equals(":|")) {
                 MeiElement repeat = new MeiElement("barLine");
                 repeat.set("form", "rptend");
-                instruction.addNote(repeat);
+                instruction.addElement(repeat);
                 continue;
             }
             if(alterationEntry.equals(":|:")) {
                 MeiElement repeat = new MeiElement("barLine");
                 repeat.set("form", "rptboth");
-                instruction.addNote(repeat);
+                instruction.addElement(repeat);
                 continue;
             }
 
@@ -242,7 +242,7 @@ public class MeiInstructifier {
                 alteration = alteration - 1;
             note.set("intm", String.valueOf(alteration));
 
-            instruction.addNote(note);
+            instruction.addElement(note);
         }
 
         return instruction;
