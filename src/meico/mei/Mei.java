@@ -248,15 +248,7 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
      * adds instructive readings for ornaments with graceNotes for the audio rendering only
      */
     public Mei instructify() {
-        return instructify(false);
-    }
-
-    /**
-     * adds instructive readings for ornaments
-     * @param display decides whether to add a <lem> with a through-composed reading, or just adding a reading with graceNotes for the audio rendering
-     */
-    public Mei instructify(boolean display) {
-        return (new MeiInstructifier()).instructify(this, display);
+        return (new MeiInstructifier()).instructify(this);
     }
 
     /**

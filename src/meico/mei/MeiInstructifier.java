@@ -48,7 +48,7 @@ public class MeiInstructifier {
      * @param display decides whether to add a <lem> with a through-composed reading, or just adding a reading with graceNotes for the audio rendering
      * @result the instructive MEI
      */
-    public Mei instructify(Mei mei, boolean display) {
+    public Mei instructify(Mei mei) {
         if (mei == null) {
             System.out.println("\nThe provided MEI object is null and cannot be instructified.");
             return null;
