@@ -173,6 +173,7 @@ public class Mei2MsmMpmConverter {
     private void convert(Element root) {
         Elements es = root.getChildElements();                                  // all child elements of root
 
+
         for (int i = 0; i < es.size(); ++i) {                                   // element beginHere traverses the mei tree
             Element e = es.get(i);                                              // get the element
 
@@ -240,8 +241,10 @@ public class Mei2MsmMpmConverter {
                     continue;
 
                 case "chord":
-                    if (e.getAttribute("grace") != null)                        // TODO: at the moment we ignore grace notes and grace chords; later on, for expressive performances, we should handle these somehow
+                    if (e.getAttribute("grace") != null) {                      // for expressive performances, we handle these somehow like other ornaments
+                        this.processOrnament(e);
                         continue;
+                    }
                     this.processChord(e);
                     continue;                                                   // continue with the next sibling
 
@@ -422,8 +425,10 @@ public class Mei2MsmMpmConverter {
                     break;
 
                 case "note":
-                    if (e.getAttribute("grace") != null)                        // TODO: at the moment we ignore grace notes and grace chords; later on, for expressive performances, we should handle these somehow
+                    if (e.getAttribute("grace") != null) {                      // for expressive performances, we handle these like other ornaments
+                        this.processOrnament(e);
                         continue;
+                    }
                     this.processNote(e);
                     continue;                                                   // no need to go deeper as any child of this tag is already processed
 
@@ -2767,25 +2772,44 @@ public class Mei2MsmMpmConverter {
             return;                                                         // stop processing it right now
 
         ArrayList<MeiElement> graceGrps = new ArrayList<>();
-        MeiElement element = new MeiElement(xmlElement);
+        MeiElement element = new MeiElement(xmlElement, true);
         String ornamentName = "";
+
+        String elementId = element.getId();
+        boolean isInstruction = false;
 
         if(element.getName().equals("supplied")) {
             ornamentName = element.get("label");
             ArrayList<MeiElement> children = element.getChildren();
             graceGrps.addAll(children);                                 // by definition each child is a graceGrp
+            elementId = element.get("corresp").replace("#", "").trim();
+            isInstruction = true;
         }
-        else if(element.getName().equals("graceGrp")) {
-            ornamentName = element.get("grace");
-            if(element.getFirstChildByName("graceGrp") == null)
-                graceGrps.add(element);
+        else if(element.getName().equals("graceGrp") || element.getName().equals("note") || element.getName().equals("chord")) {
+            MeiElement graceGrp = new MeiElement("graceGrp");
+            if(element.getName().equals("note") || element.getName().equals("chord")) {
+                graceGrp.set("grace", element.get("grace"));
+                graceGrp.appendChild(element);
+            }
             else {
-                graceGrps.addAll(flattenGraceGrp(element));
+                graceGrp = element;
+            }
+
+            ornamentName = graceGrp.get("grace");
+            if(ornamentName == null || (!ornamentName.equals("acc") && ! ornamentName.equals("unacc")))
+                ornamentName = "acc";
+            ornamentName = "grace " + ornamentName;
+
+            if(graceGrp.getFirstChildByName("graceGrp") == null && graceGrp.getFirstChildByName("beam") == null)
+                graceGrps.add(graceGrp);
+            else {
+                graceGrps.addAll(flattenGraceGrp(graceGrp));
             }
         }
 
         // create ornament data
         OrnamentData od = new OrnamentData();
+        od.xmlId = elementId;
         od.date = (Double) timingData.get(0);
         od.ornamentDefName = ornamentName;
         od.scale = 0.0;
@@ -2817,16 +2841,18 @@ public class Mei2MsmMpmConverter {
                             continue;
                     }
                     rptElem.addAttribute(new Attribute("id", elem.getId()));
-                    od.notes.add(rptElem);
+                    if(isInstruction)
+                        od.notes.add(rptElem);
                     od.noteOrder.add(rptStr);
                     continue;
                 }
 
-                Element e = Helper.cloneElement(elem.getElement());
-                Helper.removeAllAttributes(e, Arrays.asList("intm", "accid", "pname", "oct", "dur", "id"));
-                e.setNamespaceURI("");
-
-                od.notes.add(e);
+                if(isInstruction) {
+                    Element e = Helper.cloneElement(elem.getElement());
+                    Helper.removeAllAttributes(e, Arrays.asList("intm", "accid", "pname", "oct", "dur", "id"));
+                    e.setNamespaceURI("");
+                    od.notes.add(e);
+                }
                 od.noteOrder.add("#" + elem.getId());
             }
             od.noteOrder.add("|");
