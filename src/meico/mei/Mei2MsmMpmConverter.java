@@ -2921,6 +2921,16 @@ public class Mei2MsmMpmConverter {
         if (att == null)                                                                                                       // if no part attribute
             att = el.getAttribute("staff");                                                                                 // find the staffs that this is associated to
 
+        String elName = el.getLocalName();
+        if(att == null && (elName.equals("supplied") || elName.equals("graceGrp") || elName.equals("note") || elName.equals("chord"))) {    // search staff and get its "n"
+            Element parent = el;
+            do {
+                parent = Helper.getParentElement(parent);
+                if(parent != null && (parent.getLocalName().equals("staff") || parent.getLocalName().equals("part")))
+                    att = parent.getAttribute("n");
+            } while (att == null && parent != null && !parent.getLocalName().equals("part"));
+        }
+
         if ((att == null) || att.getValue().isEmpty() || att.getValue().equals("%all")) {                                      // if no part or staff association is defined treat it as a global instruction
             ornamentationMap = (OrnamentationMap) this.currentPerformance.getGlobal().getDated().getMap(Mpm.ORNAMENTATION_MAP);      // get the global ornamentationMap
             if (ornamentationMap == null) {                                                                                          // if there is no global ornamentationMap
