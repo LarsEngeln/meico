@@ -14,7 +14,14 @@ public class MeiElement {
     private String id = "";
 
     MeiElement(Element element) {
-        this.element = element;
+        this(element, false);
+    }
+    MeiElement(Element element, boolean deepCopy) {
+        if(deepCopy) {
+            this.element = Helper.cloneElement(element, true);
+        }
+        else this.element = element;
+
         initId();
         this.element.setNamespaceURI("http://www.music-encoding.org/ns/mei");
     }
@@ -91,6 +98,7 @@ public class MeiElement {
         element.appendChild(child);
     }
     public void appendChild(MeiElement child) {
+        child.removeParent();
         element.appendChild(child.getElement());
     }
 
@@ -144,5 +152,24 @@ public class MeiElement {
         }
 
         return null;
+    }
+
+    public MeiElement getParent() {
+        Element parent = Helper.getParentElement(element);
+        if(parent == null)
+            return null;
+        return new MeiElement(parent);
+    }
+
+    public boolean hasParent() {
+        MeiElement parent = getParent();
+        if(parent == null)
+            return false;
+        return true;
+    }
+
+    public void removeParent() {
+        if(hasParent())
+            getParent().element.removeChild(element);
     }
 }
