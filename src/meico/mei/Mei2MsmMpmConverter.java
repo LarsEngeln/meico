@@ -2805,8 +2805,8 @@ public class Mei2MsmMpmConverter {
 
         MeiElement graceGrp = new MeiElement("graceGrp");
         for (MeiElement child : children) {
-            if(child.getName().equals("graceGrp")) {
-                if(!graceGrps.isEmpty()) {
+            if(child.getName().equals("graceGrp") || child.getName().equals("beam")) {
+                if(!graceGrp.getChildren().isEmpty()) {
                     graceGrps.add(graceGrp);
                     graceGrp = new MeiElement("graceGrp");
                 }
@@ -2818,7 +2818,7 @@ public class Mei2MsmMpmConverter {
             graceGrp.appendChild(child);                                    // add element to a new graceGrp, if it was not a graceGrp itself
         }
 
-        if(!graceGrps.isEmpty()) {
+        if(!graceGrp.getChildren().isEmpty()) {
             graceGrps.add(graceGrp);
         }
         return graceGrps;
