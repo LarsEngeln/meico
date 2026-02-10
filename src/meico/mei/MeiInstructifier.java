@@ -183,6 +183,18 @@ public class MeiInstructifier {
             return;     // if the corresponding note is not available
         MeiElement principalNote = new MeiElement(principalNoteElement);
 
+        if(ornament.get("staff") == null && ornament.get("part") == null) {
+            MeiElement parent = principalNote;
+            do {
+                parent = parent.getParent();
+                if(parent != null && (parent.getName().equals("staff") || parent.getName().equals("part")))
+                    if(parent.has("n")) {
+                        ornament.set(parent.getName(), parent.get("n"));
+                        break;
+                    }
+            } while (parent != null && !parent.getName().equals("part"));
+        }
+
         Instruction instruction = createInstruction(ornamFullName, principalNote, ornament);
         appendInstruction(principalNote, instruction);
 
