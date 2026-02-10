@@ -84,7 +84,7 @@ public class OrnamentData {
             clone.noteOrder.addAll(this.noteOrder);
         }
         if (this.notes != null) {
-           clone.noteOrder = new ArrayList<>();
+           clone.notes = new ArrayList<>();
            clone.notes.addAll(this.notes);
         }
         return clone;
