@@ -1,6 +1,7 @@
 package meico.mpm.elements.maps;
 
 import meico.mei.Helper;
+import meico.mei.MeiElement;
 import meico.mpm.Mpm;
 import meico.mpm.elements.maps.data.OrnamentData;
 import meico.mpm.elements.styles.OrnamentationStyle;
@@ -11,6 +12,7 @@ import nu.xom.Element;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 
 /**
  * This class interfaces MPM's ornamentationMaps
@@ -279,6 +281,43 @@ public class OrnamentationMap extends GenericMap {
         }
 
         this.renderAllNonmillisecondsModifiersToMap(map);   // render ornamentation modifier attributes into .perf and velocity attributes
+    }
+
+    public void applyNotesToMaps(GenericMap map) {
+        ArrayList<Element> toBeRemoved = new ArrayList<>();
+        ArrayList<KeyValue<Double, Element>> notes = map.getAllElementsOfType("note");
+        int rptNOteLength = 32;
+        for (int i = 0; i < this.size(); ++i) {
+            Element ornament = this.getElement(i);
+            String ornamentId = Helper.getAttributeValue("id", ornament);
+            String name = Helper.getAttributeValue("name.ref", ornament);
+
+            if(name.contains("grace")) {
+                for(Element child : Helper.getAllChildElements(ornament)) {
+                    child.addAttribute(new Attribute("date", Helper.getAttributeValue("date", ornament)));
+                    map.addElement(Helper.cloneElement(child, true));
+                }
+            }
+            else {
+                for(KeyValue<Double, Element> dateElement : notes) {
+                    Element note = dateElement.getValue();
+                    String noteId = Helper.getAttributeValue("id", note);
+
+                    if (noteId.equals(ornamentId)) {
+                        toBeRemoved.add(note);
+                        ornament.addAttribute(new Attribute("date", Helper.getAttributeValue("date", note)));
+                        for (Element child : Helper.getAllChildElements(ornament)) {
+                            child.addAttribute(new Attribute("date", Helper.getAttributeValue("date", ornament)));
+                            map.addElement(Helper.cloneElement(child, true));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        for(Element element : toBeRemoved) {
+            map.removeElement(element);
+        }
     }
 
     /**
