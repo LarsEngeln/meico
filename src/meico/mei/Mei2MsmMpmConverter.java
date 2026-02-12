@@ -2821,29 +2821,7 @@ public class Mei2MsmMpmConverter {
                 //if(elem.getName().equals("note"))
 
                 if(elem.getName().equals("barLine")) {
-                    Element rptElem;
-                    String rptStr = "";
-                    switch(elem.get("form")) {
-                        case "rptstart":
-                            rptElem = new Element("rptstart");
-                            rptStr = "|:";
-                            break;
-                        case "rptboth":
-                            rptElem = new Element("rptboth");
-                            rptStr = ":|:";
-
-                            break;
-                        case "rptend":
-                            rptElem = new Element("rptend");
-                            rptStr = ":|";
-                            break;
-                        default:
-                            continue;
-                    }
-                    rptElem.addAttribute(new Attribute("id", elem.getId()));
-                    if(isInstruction)
-                        od.notes.add(rptElem);
-                    od.noteOrder.add(rptStr);
+                    od.noteOrder.add(getRptString(elem));
                     continue;
                 }
 
@@ -2862,6 +2840,23 @@ public class Mei2MsmMpmConverter {
         }
 
         addToOrnamentationMap(xmlElement, od);
+    }
+
+    private String getRptString(MeiElement elem) {
+        String rptStr = "";
+        switch(elem.get("form")) {
+            case "rptstart":
+                rptStr = "|:";
+                break;
+            case "rptboth":
+                rptStr = ":|:";
+
+                break;
+            case "rptend":
+                rptStr = ":|";
+                break;
+        }
+        return rptStr;
     }
 
     private double getHalfstepsBetween(Element principalNote, Element auxiliaryNote) {
