@@ -904,7 +904,7 @@ class DataObject extends Group {
                         Thread thread = new Thread(() -> {
                             RotateTransition ani = this.startComputeAnimation();
                             this.getWorkspace().getApp().getStatuspanel().setMessage("Instructify MEI ...");
-                            Mei mei = ((Mei)this.getData()).instructify(true);   // do the conversion
+                            Mei mei = ((Mei)this.getData()).instructify();   // do the conversion
                             if (this.getWorkspace() != null) {                                       // it is possible that the data object has been removed from workspace in the meantime
                                 ArrayList<Object> lo = new ArrayList<>();                       // sort the msms and mpms in this list
                                 lo.add(mei);                               // add instructive mei
