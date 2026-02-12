@@ -190,6 +190,10 @@ public class OrnamentDef extends AbstractDef {
             case "arpeggio":
                 def.setDynamicsGradient(-1.0, 1.0);
                 def.setTemporalSpread(-22.0, 44.0, TemporalSpread.FrameDomain.Ticks, 1.0, TemporalSpread.NoteOffShift.False);
+                break;
+            default:
+                def.setDynamicsGradient(-1.0, 1.0);
+                def.setTemporalSpread(0, 350.0, TemporalSpread.FrameDomain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic);
         }
 
         return def;

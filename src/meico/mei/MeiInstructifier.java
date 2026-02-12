@@ -45,8 +45,7 @@ public class MeiInstructifier {
     /**
      * adds instructive readings for ornaments
      * @param mei the MEI to be instructified
-     * @param display decides whether to add a <lem> with a through-composed reading, or just adding a reading with graceNotes for the audio rendering
-     * @result the instructive MEI
+    * @result the instructive MEI
      */
     public Mei instructify(Mei mei) {
         if (mei == null) {
@@ -211,7 +210,7 @@ public class MeiInstructifier {
      */
     private Instruction createInstruction(String ornamentName, MeiElement principalNote, MeiElement ornament) {
         Instruction instruction = new Instruction();
-        instruction.addCorrespondence(ornament); // sets the corresponds of the Instruction to the ornament, as the ornament has a correspondence to the principalNote via "startid"
+        instruction.addCorrespondence(principalNote); // sets the corresponds of the Instruction to the ornament, as the ornament has a correspondence to the principalNote via "startid"
 
         instruction.setLabel(ornamentName);
 

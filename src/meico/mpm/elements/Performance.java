@@ -418,7 +418,37 @@ public class Performance extends AbstractXmlSubtree {
 
         OrnamentationMap.renderGlobalOrnamentationToParts(this.getAllMsmPartsAffectedByGlobalMap(clone, Mpm.ORNAMENTATION_MAP), globalOrnamentationMap);  // add global ornamentation attributes to affected parts' notes
 
-        for (GenericMap m : maps) {                                                                         // for all maps in the list of maps for timing processing
+        Elements parts = clone.getParts();                                                                  // get the parts from the msm
+        for (int p = 0; p < parts.size(); ++p) {
+            Element msmPart = parts.get(p);
+            Part mpmPart = this.getCorrespondingPart(msmPart);                                              // find the corresponding mpm part
+            if (mpmPart == null)                                                                            // if no mpm part could be found
+                System.err.println("No MPM part found that corresponds to MSM part " + Helper.getAttributeValue("number", msmPart) + " \"" + Helper.getAttributeValue("name", msmPart) + "\""); // error message
+            else
+                System.out.println("Performing part " + mpmPart.getNumber() + ": " + mpmPart.getName() /*+ ", midi channel " + mpmPart.getMidiChannel() + ", midi port " + mpmPart.getMidiPort()*/);
+
+            // retrieve all msm maps in this part to be processed
+            Element dated = Helper.getFirstChildElement("dated", msmPart);
+            if (dated == null) continue;
+
+            GenericMap score = Performance.addMsmMapToList("score", dated, maps);
+            if(score == null) continue;
+
+            OrnamentationMap ornamentationMap = null;
+            if (mpmPart != null) {                                                                                      // if the performance has information for this part, get them, otherwise it applies only the global ones by default
+                ornamentationMap = (OrnamentationMap) mpmPart.getDated().getMap(Mpm.ORNAMENTATION_MAP);                 // get ornamentationMap
+            }
+
+            if (ornamentationMap == null)
+                ornamentationMap = globalOrnamentationMap;
+
+            if(ornamentationMap != null)
+                ornamentationMap.applyNotesToMaps(score);
+        }
+
+        for (GenericMap m : maps) {                         // for all maps in the list of maps for timing processing
+           // if(globalArticulationMap != null && globalOrnamentationMap != null)
+            //    globalOrnamentationMap.applyNotesToMaps(m);
             RubatoMap.renderRubatoToMap(m, globalRubatoMap);
             TempoMap.renderTempoToMap(m, this.getPPQ(), globalTempoMap);                                    // compute millisecond dates and end dates
         }
@@ -426,7 +456,7 @@ public class Performance extends AbstractXmlSubtree {
         ImprecisionMap.renderImprecisionToMap(globalPedalMap, globalImprecisionMap_timing, true);           // add imprecision
 
         // process the msm parts
-        Elements parts = clone.getParts();                                                                  // get the parts from the msm
+        //Elements parts = clone.getParts();                                                                  // get the parts from the msm
         for (int p = 0; p < parts.size(); ++p) {
             Element msmPart = parts.get(p);
             Part mpmPart = this.getCorrespondingPart(msmPart);                                              // find the corresponding mpm part
