@@ -13,10 +13,10 @@ public class MeiElement {
     private Element element;
     private String id = "";
 
-    MeiElement(Element element) {
+    public MeiElement(Element element) {
         this(element, false);
     }
-    MeiElement(Element element, boolean deepCopy) {
+    public MeiElement(Element element, boolean deepCopy) {
         if(deepCopy) {
             this.element = Helper.cloneElement(element, true);
         }
@@ -25,7 +25,7 @@ public class MeiElement {
         initId();
         this.element.setNamespaceURI("http://www.music-encoding.org/ns/mei");
     }
-    MeiElement(String localName)  {
+    public MeiElement(String localName)  {
         element = Helper.createElement(localName, true);
         initId();
         element.setNamespaceURI("http://www.music-encoding.org/ns/mei");

@@ -2782,7 +2782,11 @@ public class Mei2MsmMpmConverter {
             ornamentName = element.get("label");
             ArrayList<MeiElement> children = element.getChildren();
             graceGrps.addAll(children);                                 // by definition each child is a graceGrp
+
             elementId = element.get("corresp").replace("#", "").trim();
+            Element principal = this.allNotesAndChords.get(elementId);
+            timingData.set(0, Double.parseDouble(principal.getAttributeValue("date")));
+
             isInstruction = true;
         }
         else if(element.getName().equals("graceGrp") || element.getName().equals("note") || element.getName().equals("chord")) {
@@ -2818,19 +2822,22 @@ public class Mei2MsmMpmConverter {
 
         for (MeiElement graceGrp : graceGrps) {
             for(MeiElement elem : graceGrp.getChildren()) {
-                //if(elem.getName().equals("note"))
 
                 if(elem.getName().equals("barLine")) {
                     od.noteOrder.add(getRptString(elem));
                     continue;
                 }
 
-                if(isInstruction) {
-                    Element e = Helper.cloneElement(elem.getElement());
-                    Helper.removeAllAttributes(e, Arrays.asList("intm", "accid", "pname", "oct", "dur", "id"));
-                    e.setNamespaceURI("");
-                    od.notes.add(e);
+                Element e = Helper.cloneElement(elem.getElement());
+                Element msmNote = MeiNote2MsmNote(e);
+
+                if(msmNote != null) {
+                    if(e.getAttribute("intm") != null)
+                        msmNote.addAttribute(new Attribute("intm", e.getAttributeValue("intm")));
+
+                    od.notes.add(msmNote);
                 }
+
                 od.noteOrder.add("#" + elem.getId());
             }
             od.noteOrder.add("|");
@@ -3590,6 +3597,36 @@ public class Mei2MsmMpmConverter {
         }
     }
 
+    private Element MeiNote2MsmNote(Element meiNote) {
+        double date = this.getMidiTime();
+
+        Element note = new Element("note");                                        // create a note element
+        Helper.copyId(meiNote, note);                                                 // copy the id
+        note.addAttribute(new Attribute("date", Double.toString(date)));           // compute the date of the note
+
+        // compute midi pitch
+        ArrayList<String> pitchdata = new ArrayList<>();                        // this is to store pitchname, accidentals and octave as additional attributes of the note
+        double pitch = this.computePitch(meiNote, pitchdata);                      // compute pitch of the note
+        if (pitch == -1)
+            return null;                                                                // if failed, cancel
+        note.addAttribute(new Attribute("midi.pitch", Double.toString(pitch)));    // store resulting pitch in the note
+        note.addAttribute(new Attribute("pitchname", pitchdata.get(0)));           // store pitchname as additional attribute
+        note.addAttribute(new Attribute("accidentals", pitchdata.get(1)));         // store accidentals as additional attribute
+        note.addAttribute(new Attribute("octave", pitchdata.get(2)));              // store octave as additional attribute
+
+        if (meiNote.getAttribute("accid") != null) {                               // if the note has a visual accidental
+            this.accid.add(meiNote);                                                  // remember the accidental for the rest of the measure (only if it is visual, gestural is only for the current note)
+        }
+
+        // compute midi duration
+        double dur = this.computeDuration(meiNote);                            // compute note duration in midi ticks
+        if (dur == 0.0)
+            return null;                                                         // if failed, cancel
+        note.addAttribute(new Attribute("duration", Double.toString(dur)));
+
+        return note;
+    }
+
     /**
      * process an mei note element
      * @param note an mei note element
@@ -3610,29 +3647,13 @@ public class Mei2MsmMpmConverter {
 
         this.processArtic(note);                                                // if the note has attributes artic.ges or artic, this method call will make sure that the corresponding MPM articulations are generated
 
-        double date = this.getMidiTime();
+        Element s = this.MeiNote2MsmNote(note);
+        if(s == null)
+            return;
 
-        Element s = new Element("note");                                        // create a note element
-        Helper.copyId(note, s);                                                 // copy the id
-        s.addAttribute(new Attribute("date", Double.toString(date)));           // compute the date of the note
-
-        // compute midi pitch
-        ArrayList<String> pitchdata = new ArrayList<>();                        // this is to store pitchname, accidentals and octave as additional attributes of the note
-        double pitch = this.computePitch(note, pitchdata);               // compute pitch of the note
-        if (pitch == -1) return;                                                // if failed, cancel
-        s.addAttribute(new Attribute("midi.pitch", Double.toString(pitch)));    // store resulting pitch in the note
-        s.addAttribute(new Attribute("pitchname", pitchdata.get(0)));           // store pitchname as additional attribute
-        s.addAttribute(new Attribute("accidentals", pitchdata.get(1)));         // store accidentals as additional attribute
-        s.addAttribute(new Attribute("octave", pitchdata.get(2)));              // store octave as additional attribute
-
-        if (note.getAttribute("accid") != null) {                               // if the note has a visual accidental
-            this.accid.add(note);                                        // remember the accidental for the rest of the measure (only if it is visual, gestural is only for the current note)
-        }
-
-        // compute midi duration
-        double dur = this.computeDuration(note);                         // compute note duration in midi ticks
-        if (dur == 0.0) return;                                                 // if failed, cancel
-        s.addAttribute(new Attribute("duration", Double.toString(dur)));
+        double date = Double.parseDouble(Helper.getAttributeValue("date", s));
+        double dur = Double.parseDouble(Helper.getAttributeValue("duration", s));
+        double pitch = Double.parseDouble(Helper.getAttributeValue("midi.pitch", s));
 
         // draw currentDate counter
         if (this.currentChord == null)                                   // the next instruction must be suppressed in the chord environment
