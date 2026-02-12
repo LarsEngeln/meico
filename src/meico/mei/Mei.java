@@ -1,6 +1,5 @@
 package meico.mei;
 
-import javafx.collections.transformation.SortedList;
 import meico.mpm.Mpm;
 import meico.msm.Msm;
 import meico.musicxml.MusicXml;
