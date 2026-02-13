@@ -336,6 +336,10 @@ public class OrnamentationMap extends GenericMap {
             return;
         }
 
+        for(GenericMap map : maps) {
+            applyNotesToMaps(map);
+        }
+
         // create a hashmap of all note elements, hashed by their ID, so we have quick access to them later on
         HashMap<String, Element> notes = new HashMap<>();
         for (GenericMap map : maps) {
