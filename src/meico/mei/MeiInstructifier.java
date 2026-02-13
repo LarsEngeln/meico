@@ -1,5 +1,6 @@
 package meico.mei;
 
+import meico.xml.RichElement;
 import nu.xom.Element;
 import nu.xom.Elements;
 
@@ -97,13 +98,13 @@ public class MeiInstructifier {
                     currentKey = new HashMap<>();
                     break;
                 case "keyAccid":
-                    MeiElement keyAccid = new MeiElement(e);
+                    RichElement keyAccid = new RichElement(e);
                     currentKey.put(keyAccid.get("pname"), keyAccid.get("accid"));
                     continue;
                 case "measure":
                     currentAccids = new HashMap<>();
                 case "note":
-                    MeiElement note = new MeiElement(e);
+                    RichElement note = new RichElement(e);
                     String accid = note.get("accid");
                     if(accid == null || accid.isEmpty())
                        break;
@@ -126,13 +127,13 @@ public class MeiInstructifier {
      * @param element
      * @return
      */
-    private String getOrnamentFullName(MeiElement element) {
+    private String getOrnamentFullName(RichElement element) {
         String form = element.get("form");
 
         String name = element.getName();
 
         if(name.equals("ornam")) {
-            MeiElement symbol = element.getFirstChildByName("symbol");
+            RichElement symbol = element.getFirstChildByName("symbol");
             return getOrnamentFullNameFromSymbol(symbol);
         }
         if(form != null && !form.isEmpty() && !form.equals("unknown"))
@@ -145,7 +146,7 @@ public class MeiInstructifier {
      * @param symbol
      * @return
      */
-    private String getOrnamentFullNameFromSymbol(MeiElement symbol) {
+    private String getOrnamentFullNameFromSymbol(RichElement symbol) {
         if(symbol == null)
             return null;
 
@@ -164,7 +165,7 @@ public class MeiInstructifier {
      * @param element
      */
     private void instructifyElement(Element element) {
-        MeiElement ornament = new MeiElement(element);
+        RichElement ornament = new RichElement(element);
         String ornamFullName = getOrnamentFullName(ornament);
         if(ornamFullName == null || ornamFullName.equals(""))
             return;     // if I am not yet supported
@@ -180,10 +181,10 @@ public class MeiInstructifier {
         Element principalNoteElement = Helper.findSibling(ornament.getElement(), startid);
         if (principalNoteElement == null)
             return;     // if the corresponding note is not available
-        MeiElement principalNote = new MeiElement(principalNoteElement);
+        RichElement principalNote = new RichElement(principalNoteElement);
 
         if(ornament.get("staff") == null && ornament.get("part") == null) {
-            MeiElement parent = principalNote;
+            RichElement parent = principalNote;
             do {
                 parent = parent.getParent();
                 if(parent != null && (parent.getName().equals("staff") || parent.getName().equals("part")))
@@ -208,7 +209,7 @@ public class MeiInstructifier {
      * @param ornament
      * @return
      */
-    private Instruction createInstruction(String ornamentName, MeiElement principalNote, MeiElement ornament) {
+    private Instruction createInstruction(String ornamentName, RichElement principalNote, RichElement ornament) {
         Instruction instruction = new Instruction();
         instruction.addCorrespondence(principalNote); // sets the corresponds of the Instruction to the ornament, as the ornament has a correspondence to the principalNote via "startid"
 
@@ -230,25 +231,25 @@ public class MeiInstructifier {
 
         for (String alterationEntry : alterations) {
             if(alterationEntry.equals("|:")) {
-                MeiElement repeat = new MeiElement("barLine");
+                RichElement repeat = new RichElement("barLine");
                 repeat.set("form", "rptstart");
                 instruction.addElement(repeat);
                 continue;
             }
             if(alterationEntry.equals(":|")) {
-                MeiElement repeat = new MeiElement("barLine");
+                RichElement repeat = new RichElement("barLine");
                 repeat.set("form", "rptend");
                 instruction.addElement(repeat);
                 continue;
             }
             if(alterationEntry.equals(":|:")) {
-                MeiElement repeat = new MeiElement("barLine");
+                RichElement repeat = new RichElement("barLine");
                 repeat.set("form", "rptboth");
                 instruction.addElement(repeat);
                 continue;
             }
 
-            MeiElement note = new MeiElement("note");
+            RichElement note = new RichElement("note");
             note.set("dur", String.valueOf(noteDuration));
             note.set("oct", String.valueOf(principalNote.get("oct")));
             note.set("pname", principalNote.get("pname"));
@@ -287,7 +288,7 @@ public class MeiInstructifier {
      * @param auxiliaryNote
      * @return
      */
-    private double getHalfstepsBetween(MeiElement principalNote, MeiElement auxiliaryNote) {
+    private double getHalfstepsBetween(RichElement principalNote, RichElement auxiliaryNote) {
         double halfsteps = 0.0;
 
         String priAccid = getCurrentAccid(principalNote);
@@ -306,7 +307,7 @@ public class MeiInstructifier {
      * returns the current accid for the note. If note has no accid, the measure's accid (with fallback to the current key) will be returned.
      * @param note
      */
-    private String getCurrentAccid(MeiElement note) {
+    private String getCurrentAccid(RichElement note) {
         if(note.has("accid"))
             return note.get("accid");
 
@@ -327,7 +328,7 @@ public class MeiInstructifier {
      * @param accid
      * @param setAccidToo
      */
-    private static void setAccidGes(MeiElement note, String accid, boolean setAccidToo) {
+    private static void setAccidGes(RichElement note, String accid, boolean setAccidToo) {
         if(accid == null)
             return;
         if(setAccidToo) {
@@ -341,7 +342,7 @@ public class MeiInstructifier {
      * @param principalNote
      * @param instruction
      */
-    private void appendInstruction(MeiElement principalNote, Instruction instruction) {
+    private void appendInstruction(RichElement principalNote, Instruction instruction) {
         Instruction existingInstruction = instructions.get(principalNote.getId());
         if(existingInstruction != null) {
             existingInstruction.append(instruction);
@@ -357,7 +358,7 @@ public class MeiInstructifier {
      * @param ornament
      * @return
      */
-    private boolean checkForCombinedOrnaments(MeiElement ornament) {
+    private boolean checkForCombinedOrnaments(RichElement ornament) {
         if(prevOrnams.contains(ornament.getId())) // I found myself, so I have been instructified already
             return true;
         if(ornament.has("prev")) {
@@ -377,7 +378,7 @@ public class MeiInstructifier {
      * checks and processes already occurred "next" ornament, if the just processed ornament has a "next".
      * @param ornament
      */
-    private void checkForNextOrnament(MeiElement ornament) {
+    private void checkForNextOrnament(RichElement ornament) {
         if(nextOrnams.get(ornament.getId()) != null)
             nextOrnams.remove(ornament.getId());
         // if someone is already waiting for me

@@ -1,18 +1,16 @@
 package meico.mpm.elements.maps;
 
 import meico.mei.Helper;
-import meico.mei.MeiElement;
 import meico.mpm.Mpm;
 import meico.mpm.elements.maps.data.OrnamentData;
 import meico.mpm.elements.styles.OrnamentationStyle;
+import meico.msm.MsmElement;
 import meico.supplementary.KeyValue;
+import meico.xml.RichElement;
 import nu.xom.Attribute;
 import nu.xom.Element;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.*;
 
 /**
  * This class interfaces MPM's ornamentationMaps
@@ -283,33 +281,28 @@ public class OrnamentationMap extends GenericMap {
         this.renderAllNonmillisecondsModifiersToMap(map);   // render ornamentation modifier attributes into .perf and velocity attributes
     }
 
+
     public void applyNotesToMaps(GenericMap map) {
         ArrayList<Element> toBeRemoved = new ArrayList<>();
         ArrayList<KeyValue<Double, Element>> notes = map.getAllElementsOfType("note");
-        int rptNOteLength = 32;
-        for (int i = 0; i < this.size(); ++i) {
-            Element ornament = this.getElement(i);
-            String ornamentId = Helper.getAttributeValue("id", ornament);
-            String name = Helper.getAttributeValue("name.ref", ornament);
 
-            if(name.contains("grace")) {
-                for(Element child : Helper.getAllChildElements(ornament)) {
-                    child.addAttribute(new Attribute("date", Helper.getAttributeValue("date", ornament)));
-                    map.addElement(Helper.cloneElement(child, true));
+        for (int i = 0; i < this.size(); ++i) {  // for each ornament
+            MsmElement ornament = new MsmElement(this.getElement(i));
+
+            if(ornament.get("name.ref").contains("grace")) {
+                for(RichElement child : ornament.getChildren()) {
+                    child.copyValue("date", ornament);
+                    map.addElement(child.getClonedElement());
                 }
             }
             else {
-                for(KeyValue<Double, Element> dateElement : notes) {
-                    Element note = dateElement.getValue();
-                    String noteId = Helper.getAttributeValue("id", note);
+                MsmElement ornamNote = null;
+                for(KeyValue<Double, Element> dateElement : notes) {  // find the note
+                    MsmElement note = new MsmElement(dateElement.getValue());
 
-                    if (noteId.equals(ornamentId)) {
-                        toBeRemoved.add(note);
-                        ornament.addAttribute(new Attribute("date", Helper.getAttributeValue("date", note)));
-                        for (Element child : Helper.getAllChildElements(ornament)) {
-                            child.addAttribute(new Attribute("date", Helper.getAttributeValue("date", ornament)));
-                            map.addElement(Helper.cloneElement(child, true));
-                        }
+                    if (note.getId().equals(ornament.getId())) {
+                        ornamNote = note;
+
                         break;
                     }
                 }

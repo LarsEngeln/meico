@@ -1,5 +1,6 @@
 package meico.mei;
 
+import meico.xml.RichElement;
 import nu.xom.Element;
 import nu.xom.ParentNode;
 
@@ -10,15 +11,15 @@ import java.util.ArrayList;
  * @author Lars Engeln
  */
 public class Instruction {
-    private MeiElement instructionElement;
-    private MeiElement groupElement;
-    private ArrayList<MeiElement> notes;
+    private RichElement instructionElement;
+    private RichElement groupElement;
+    private ArrayList<RichElement> notes;
 
-    private ArrayList<MeiElement> correspondences;
+    private ArrayList<RichElement> correspondences;
 
     public Instruction() {
-        instructionElement          = new MeiElement("supplied");
-        groupElement                = new MeiElement("graceGrp");
+        instructionElement          = new RichElement("supplied");
+        groupElement                = new RichElement("graceGrp");
         notes                       = new ArrayList<>();
         correspondences             = new ArrayList<>();
 
@@ -33,11 +34,11 @@ public class Instruction {
         groupElement.set("label", label);
     }
 
-    public void addCorrespondence(MeiElement note) {
+    public void addCorrespondence(RichElement note) {
         correspondences.add(note);
         String corresp = "";
         boolean isFirst = true;
-        for (MeiElement c : correspondences) {
+        for (RichElement c : correspondences) {
             String id = Helper.getAttribute("id", c.getElement()).getValue();
             if (!isFirst) corresp += ' ';
             else isFirst = false;
@@ -47,15 +48,15 @@ public class Instruction {
         instructionElement.set("corresp", corresp);
     }
 
-    public void addElement(MeiElement element) {
+    public void addElement(RichElement element) {
         if(element.getName().equals("note")) {
             element.set("stem.visible", "false");
             notes.add(element);
         }
         groupElement.appendChild(element);
     }
-    public MeiElement getNote(int index) { return notes.get(index); }
-    public ArrayList<MeiElement> getNotes() { return notes; }
+    public RichElement getNote(int index) { return notes.get(index); }
+    public ArrayList<RichElement> getNotes() { return notes; }
 
     public void removeNote(int index) {
         notes.remove(index);
@@ -66,20 +67,20 @@ public class Instruction {
         return instructionElement.getElement();
     }
 
-    public MeiElement getGroupElement() {
+    public RichElement getGroupElement() {
         return groupElement;
     }
 
     public void append(Instruction instruction) {
-        MeiElement lastNote = getNote(notes.size()-1);
-        MeiElement firstNote = getNote(0);
+        RichElement lastNote = getNote(notes.size()-1);
+        RichElement firstNote = getNote(0);
 
         if(lastNote.get("pname").equals(firstNote.get("pname"))
                 && lastNote.get("accid.ges").equals(firstNote.get("accid.ges"))) {
             instruction.removeNote(0);
         }
 
-        MeiElement child = instruction.getGroupElement();
+        RichElement child = instruction.getGroupElement();
         ParentNode parent = child.getElement().getParent();
         if (parent != null) {
             parent.removeChild(child.getElement());
