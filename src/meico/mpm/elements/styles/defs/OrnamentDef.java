@@ -193,7 +193,7 @@ public class OrnamentDef extends AbstractDef {
                 break;
             default:
                 def.setDynamicsGradient(-1.0, 1.0);
-                def.setTemporalSpread(0, 350.0, TemporalSpread.FrameDomain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic);
+                def.setTemporalSpread(0, 500, TemporalSpread.FrameDomain.Ticks, 0.9, TemporalSpread.NoteOffShift.Monophonic);
         }
 
         return def;
