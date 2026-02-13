@@ -486,7 +486,7 @@ public class Helper {
      * @return
      */
     public static String addUUID(Element toThis) {
-        return addUUID(toThis, false);
+        return addUUID(toThis, false, true);
     }
     /**
      * Add a UUID-based xml:id to the specified element.
@@ -496,14 +496,26 @@ public class Helper {
      * @return
      */
     public static String addUUID(Element toThis, boolean shortVersion) {
-        String uuid = "meico_" + UUID.randomUUID().toString();              // generate new id
+        return addUUID(toThis, shortVersion, true);
+    }
+    /**
+     * Add a UUID-based xml:id to the specified element.
+     * Caution: If the element has already an xml:id, it will be overwritten!
+     * @param toThis
+     * @param shortVersion cuts the UUID to a shorter version, that might not be unique anymore
+     * @param addNamespace adds xml as namespace -> xml:id (this is for MEI not MSM)
+     * @return
+     */
+    public static String addUUID(Element toThis, boolean shortVersion, boolean addNamespace) {
+        String uuid = "meico_" + UUID.randomUUID().toString();             // generate new id
         if (shortVersion) {
-           String[] splitted = uuid.split("-", 2);
-           if (splitted.length > 0)
-               uuid = splitted[0];
+            String[] splitted = uuid.split("-", 2);
+            if (splitted.length > 0)
+                uuid = splitted[0];
         }
         Attribute a = new Attribute("id", uuid);                            // create an attribute
-        a.setNamespace("xml", "http://www.w3.org/XML/1998/namespace");      // set its namespace to xml
+        if(addNamespace)
+            a.setNamespace("xml", "http://www.w3.org/XML/1998/namespace");      // set its namespace to xml
         toThis.addAttribute(a);                                             // add attribute to the element
         return uuid;
     }
