@@ -306,6 +306,93 @@ public class OrnamentationMap extends GenericMap {
                         break;
                     }
                 }
+                if(ornamNote == null)
+                    continue;
+                toBeRemoved.add(ornamNote.getElement());
+                ornament.copyValue("date", ornamNote);
+                ArrayList<RichElement> children = ornament.getChildren();
+                ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
+                Map<Integer, Integer> repeats = new HashMap<>();
+
+                int noteIndex = 0;
+                int repeatStart = noteIndex;
+                for(int j = 0; j < noteOrder.size();) {
+                    String order = noteOrder.get(j);
+                    if(order.contains("#")) {
+                        noteOrder.set(j, order.replaceAll("#", ""));
+                        noteIndex++;
+                        j++;
+                        continue;
+                    }
+
+                    switch(order) {
+                        case "|:":
+                            repeatStart = noteIndex;
+                            break;
+                        case ":|":
+                            repeats.put(repeatStart, noteIndex);
+                            break;
+                        case "|":
+                    }
+
+                    noteOrder.remove(j);
+                }
+
+
+                Double rel = ornamNote.getDuration() / noteOrder.size();
+
+                int rptNoteLength = 135; //32th
+                double maxNotes = Math.ceil(ornamNote.getDuration() / rptNoteLength);
+
+
+                if(!repeats.isEmpty() && maxNotes > noteOrder.size()) { // insert a repetition, as it is needed;
+                    ArrayList<String> notesToAdd = new ArrayList<>();
+                    int rptStart = repeats.keySet().iterator().next();
+                    int rptEnd = repeats.get(rptStart);
+                    int rptNotesAmount = rptEnd - rptStart;
+
+                    while(maxNotes >= (notesToAdd.size() + noteOrder.size() + rptNotesAmount)) {
+                        for (int k = rptStart; k < rptEnd; ++k) {
+                            notesToAdd.add(noteOrder.get(k));
+                        }
+                    }
+                    for(String n : notesToAdd) {
+                        noteOrder.add(rptEnd, n);
+                        rptEnd++;
+                    }
+                    ornament.set("note.order", String.join(" ", noteOrder));
+                }
+
+
+
+                for (int j = 0; j < noteOrder.size(); ++j) {
+                    String noteId = noteOrder.get(j);
+                    MsmElement note = null;
+                    for(RichElement child : children) {
+                        if(child.getId().equals(noteId)) {
+                            note = new MsmElement(child.getElement(), true);
+                            break;
+                        }
+                    }
+                    if(note == null)
+                        continue;
+
+                    note.createNewId(); // we want a new ID as wie generated multiple notes from the seed note
+                    noteOrder.set(j, note.getId());
+                    note.copyValue("date", ornamNote);
+                    note.copyValue("duration", ornamNote);
+                    note.copyValue("layer", ornamNote);
+                    note.copyValue("date.perf", ornamNote);
+                    note.copyValue("duration.perf", ornamNote);
+                    note.copyValue("velocity", ornamNote);
+                    note.copyValue("ornament.dynamics", ornamNote);
+                    note.copyValue("ornament.date.offset", ornamNote);
+                    note.copyValue("milliseconds.date", ornamNote);
+                    note.copyValue("date.end.perf", ornamNote);
+                    note.copyValue("milliseconds.date.end", ornamNote);
+                    map.addElement(note.getElement());
+                }
+                ornament.set("note.order", String.join(" ", noteOrder));
             }
         }
         for(Element element : toBeRemoved) {
