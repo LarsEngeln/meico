@@ -65,6 +65,19 @@ public class OrnamentationMap extends GenericMap {
         return d;
     }
 
+    public static OrnamentationMap createOrnamentationMap(OrnamentationMap ornamentationMap) throws Exception {
+        OrnamentationMap clone = createOrnamentationMap();
+        clone.setId(ornamentationMap.getId());
+        clone.setType(ornamentationMap.getType());
+        clone.setHeaders(ornamentationMap.getGlobalHeader(), ornamentationMap.getLocalHeader());
+        for(KeyValue<Double, Element> elem : ornamentationMap.getAllElements()) {
+            KeyValue<Double, Element> e = new KeyValue<>(elem.getKey(), elem.getValue().copy());
+            clone.insertElement(e);
+        }
+
+        return clone;
+    }
+
     /**
      * set the data of this object, this parses the xml element and generates the according data structure
      * @param xml
@@ -360,7 +373,7 @@ public class OrnamentationMap extends GenericMap {
                         noteOrder.add(rptEnd, n);
                         rptEnd++;
                     }
-                    ornament.set("note.order", String.join(" ", noteOrder));
+                    ornament.set("note.order.perf", String.join(" ", noteOrder));
                 }
 
 
@@ -392,7 +405,7 @@ public class OrnamentationMap extends GenericMap {
                     note.copyValue("milliseconds.date.end", ornamNote);
                     map.addElement(note.getElement());
                 }
-                ornament.set("note.order", String.join(" ", noteOrder));
+                ornament.set("note.order.perf", String.join(" ", noteOrder));
             }
         }
         for(Element element : toBeRemoved) {
@@ -475,7 +488,7 @@ public class OrnamentationMap extends GenericMap {
             // determine the note order and collect the notes which the ornament will be applied to
             int noteOrderAscending = 1;                         // 1 = ascending pitch, -1 = descending pitch, 0 = ID sequence
             ArrayList<ArrayList<Element>> chordSequence = null; // this will hold the chord/note sequence
-            Attribute noteOrderAtt = ornamentXml.getAttribute("note.order");
+            Attribute noteOrderAtt = ornamentXml.getAttribute("note.order.perf");
             if (noteOrderAtt != null) {
                 String no = noteOrderAtt.getValue().trim();
                 switch (no) {
