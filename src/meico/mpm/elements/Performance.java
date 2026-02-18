@@ -467,7 +467,12 @@ public class Performance extends AbstractXmlSubtree {
                 asynchronyMap = (AsynchronyMap) mpmPart.getDated().getMap(Mpm.ASYNCHRONY_MAP);                          // get asynchronyMap
                 dynamicsMap = (DynamicsMap) mpmPart.getDated().getMap(Mpm.DYNAMICS_MAP);                                // get dynamicsMap
                 metricalAccentuationMap = (MetricalAccentuationMap) mpmPart.getDated().getMap(Mpm.METRICAL_ACCENTUATION_MAP);   // get metricalAccentuationMap
-                ornamentationMap = (OrnamentationMap) mpmPart.getDated().getMap(Mpm.ORNAMENTATION_MAP);                 // get ornamentationMap
+                try {
+                    ornamentationMap = OrnamentationMap.createOrnamentationMap((OrnamentationMap) mpmPart.getDated().getMap(Mpm.ORNAMENTATION_MAP));                 // get ornamentationMap
+                }
+                catch (Exception e) {
+                    String exc = e.getLocalizedMessage();
+                }
                 articulationMap = (ArticulationMap) mpmPart.getDated().getMap(Mpm.ARTICULATION_MAP);                    // get articulationMap
                 imprecisionMap_timing = (ImprecisionMap) mpmPart.getDated().getMap(Mpm.IMPRECISION_MAP_TIMING);         // get imprecisionMap.timing
                 imprecisionMap_dynamics = (ImprecisionMap) mpmPart.getDated().getMap(Mpm.IMPRECISION_MAP_DYNAMICS);     // get imprecisionMap.dynamics
