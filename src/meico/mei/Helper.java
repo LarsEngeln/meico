@@ -313,6 +313,25 @@ public class Helper {
     }
 
     /**
+     * make a comparison of two elements; ignore their child elements
+     * @param a
+     * @param b
+     * @return true if equal, otherwise false
+     */
+    public static boolean compareFlatElements(Element a, Element b) {
+        if ((a == null) || (b == null)) return false;
+        if (!a.getLocalName().equals(b.getLocalName())) return false;
+
+        for (int i=0; i < a.getAttributeCount(); ++i) {
+            Attribute aAtt = a.getAttribute(i);
+            Attribute bAtt = b.getAttribute(aAtt.getLocalName());
+            if (bAtt == null) return false;
+            if (!aAtt.getValue().equals(bAtt.getValue())) return false;
+        }
+        return true;
+    }
+
+    /**
      * this method adds element addThis to a timely sequenced list, the map, and ensures the timely order of the elements in the map;
      * therefore, addThis must contain the attribute "date"; if not, addThis is appended at the end
      * @param addThis an xml element (should have an attribute date)
