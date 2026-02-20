@@ -11,23 +11,23 @@ import java.io.InputStreamReader;
 import java.util.*;
 
 /**
- * This class adds instructions for ornaments, by creating notes to be played within a <supplied></supplied> after the principal note.
+ * This class adds ornamentExpansions for ornaments, by creating notes to be played within a <supplied></supplied> after the principal note.
  * This is mainly for rendering via MPM.
- * These instructions are inserted into the given MEI (the original MEI file stays untouched).
+ * These ornamentExpansions are inserted into the given MEI (the original MEI file stays untouched).
  * @author Lars Engeln
  */
-public class MeiInstructifier {
+public class MeiOrnamentExpander {
     public Mei mei;
-    private Map<String, Instruction> instructions = new HashMap<String, Instruction>(); // ornament's startid to instruction
+    private Map<String, OrnamentExpansion> ornamentExpansions = new HashMap<String, OrnamentExpansion>(); // ornament's startid to ornamentExpansion
     private Map<String, List<String>> ornamentLookup = new HashMap<String, List<String>>();
 
-    private ArrayList<String> prevOrnams = new ArrayList<String>(); // already instructified ornams with that are "previous" to another ornam
+    private ArrayList<String> prevOrnams = new ArrayList<String>(); // already expanded ornams with that are "previous" to another ornam
     private Map<String, Element> nextOrnams = new HashMap<String, Element>(); // prevId to nextElement - remember "next" ornament to be processed, if "prev"-Id have not been processed yet - so, if "prev"/"next" is not well sorted in the MEI
 
     private Map<String, Map<String, String>> currentAccids = new HashMap<>(); // all accids in the current measure, "oct"->"pname"->"accid"
     private Map<String, String> currentKey = new HashMap<>(); // accids of the current key, "pname"->"accid"
 
-    public MeiInstructifier(Mei mei) {
+    public MeiOrnamentExpander(Mei mei) {
         try {
             createOrnamentLookUp();
         } catch (IOException e) {
@@ -35,7 +35,7 @@ public class MeiInstructifier {
         }
     }
 
-    public MeiInstructifier()  {
+    public MeiOrnamentExpander()  {
         try {
             createOrnamentLookUp();
         } catch (IOException e) {
@@ -44,13 +44,13 @@ public class MeiInstructifier {
     }
 
     /**
-     * adds instructive readings for ornaments
-     * @param mei the MEI to be instructified
-    * @result the instructive MEI
+     * adds expanded readings for ornaments
+     * @param mei the MEI to be expanded
+    * @result the expanded MEI
      */
-    public Mei instructify(Mei mei) {
+    public Mei expandOrnaments(Mei mei) {
         if (mei == null) {
-            System.out.println("\nThe provided MEI object is null and cannot be instructified.");
+            System.out.println("\nThe provided MEI object is null and cannot be expanded.");
             return null;
         }
 
@@ -64,22 +64,22 @@ public class MeiInstructifier {
 
         Elements bodies = this.mei.getMusic().getChildElements("body", this.mei.getMusic().getNamespaceURI());  // get the list of body elements in the mei source
         for (int b = 0; b < bodies.size(); ++b)                                 // for each body
-            this.instructify(bodies.get(b));                                        // convert each body to msm, the resulting Msms can then be found in this.movements
+            this.expandOrnaments(bodies.get(b));                                        // convert each body to msm, the resulting Msms can then be found in this.movements
 
         for(Element element : nextOrnams.values()){  // do not forget someone, should never happen if MEI is well-defined
-            this.instructifyElement(element);
+            this.expandOrnamentsElement(element);
         }
 
-        System.out.println("MEI instructification finished. Time consumed: " + (System.currentTimeMillis() - startTime) + " milliseconds");
+        System.out.println("MEI expansion of Ornaments finished. Time consumed: " + (System.currentTimeMillis() - startTime) + " milliseconds");
 
         return mei;
     }
 
     /**
-     * iterates the MEI XML tree to identify supported elements to get instructified
+     * iterates the MEI XML tree to identify supported elements to get expanded
      * @param root
      */
-    private void instructify(Element root) {
+    private void expandOrnaments(Element root) {
         Elements es = root.getChildElements();                                  // all child elements of root
 
         for (int i = 0; i < es.size(); ++i) {                                   // element beginHere traverses the mei tree
@@ -91,7 +91,7 @@ public class MeiInstructifier {
                 case "trill":
                 case "mordent":
                 case "ornam":
-                    instructifyElement(e);
+                    expandOrnamentsElement(e);
                     continue;
 
                 case "keySig":
@@ -118,7 +118,7 @@ public class MeiInstructifier {
                 //default:
                 //    continue;                                                   // ignore it and its children
             }
-            this.instructify(e);
+            this.expandOrnaments(e);
         }
     }
 
@@ -161,10 +161,10 @@ public class MeiInstructifier {
     }
 
     /**
-     * checks and prepares the Instruction creation, and calls (if sufficient) createInstruction
+     * checks and prepares the OrnamentExpansion creation, and calls (if sufficient) createOrnamentExpansion
      * @param element
      */
-    private void instructifyElement(Element element) {
+    private void expandOrnamentsElement(Element element) {
         RichElement ornament = new RichElement(element);
         String ornamFullName = getOrnamentFullName(ornament);
         if(ornamFullName == null || ornamFullName.equals(""))
@@ -195,25 +195,25 @@ public class MeiInstructifier {
             } while (parent != null && !parent.getName().equals("part"));
         }
 
-        Instruction instruction = createInstruction(ornamFullName, principalNote, ornament);
-        appendInstruction(principalNote, instruction);
+        OrnamentExpansion ornamentExpansion = createOrnamentExpansion(ornamFullName, principalNote, ornament);
+        appendOrnamentExpansion(principalNote, ornamentExpansion);
 
         checkForNextOrnament(ornament);
     }
 
     /**
-     * creates an Instruction with ornamentName for the ornament, by creating notes to be played within a <supplied></supplied> addition after the principal note.
-     * This Instruction is inserted into the given MEI (the original MEI file stays untouched).
+     * creates an OrnamentExpansion with ornamentName for the ornament, by creating notes to be played within a <supplied></supplied> addition after the principal note.
+     * This OrnamentExpansion is inserted into the given MEI (the original MEI file stays untouched).
      * @param ornamentName
      * @param principalNote
      * @param ornament
      * @return
      */
-    private Instruction createInstruction(String ornamentName, RichElement principalNote, RichElement ornament) {
-        Instruction instruction = new Instruction();
-        instruction.addCorrespondence(principalNote); // sets the corresponds of the Instruction to the ornament, as the ornament has a correspondence to the principalNote via "startid"
+    private OrnamentExpansion createOrnamentExpansion(String ornamentName, RichElement principalNote, RichElement ornament) {
+        OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
+        ornamentExpansion.addCorrespondence(principalNote); // sets the corresponds of the OrnamentExpansion to the ornament, as the ornament has a correspondence to the principalNote via "startid"
 
-        instruction.setLabel(ornamentName);
+        ornamentExpansion.setLabel(ornamentName);
 
         List<String> alterations = ornamentLookup.get(ornamentName);
 
@@ -233,19 +233,19 @@ public class MeiInstructifier {
             if(alterationEntry.equals("|:")) {
                 RichElement repeat = new RichElement("barLine");
                 repeat.set("form", "rptstart");
-                instruction.addElement(repeat);
+                ornamentExpansion.addElement(repeat);
                 continue;
             }
             if(alterationEntry.equals(":|")) {
                 RichElement repeat = new RichElement("barLine");
                 repeat.set("form", "rptend");
-                instruction.addElement(repeat);
+                ornamentExpansion.addElement(repeat);
                 continue;
             }
             if(alterationEntry.equals(":|:")) {
                 RichElement repeat = new RichElement("barLine");
                 repeat.set("form", "rptboth");
-                instruction.addElement(repeat);
+                ornamentExpansion.addElement(repeat);
                 continue;
             }
 
@@ -276,10 +276,10 @@ public class MeiInstructifier {
             double halfsteps = getHalfstepsBetween(principalNote, note);
             note.set("intm", String.valueOf(halfsteps)+"hs");
 
-            instruction.addElement(note);
+            ornamentExpansion.addElement(note);
         }
 
-        return instruction;
+        return ornamentExpansion;
     }
 
     /**
@@ -323,7 +323,7 @@ public class MeiInstructifier {
     }
 
     /**
-     * sets the accid(.ges) Attribute for having these information explicitly in the resulting ornaments instruction notes. This simplifies Instruction merging.
+     * sets the accid(.ges) Attribute for having these information explicitly in the resulting ornaments ornamentExpansion notes. This simplifies OrnamentExpansion merging.
      * @param note
      * @param accid
      * @param setAccidToo
@@ -338,18 +338,18 @@ public class MeiInstructifier {
     }
 
     /**
-     * appends the instruction directly after the principal Note in the MEI (the original MEI file stays untouched).
+     * appends the ornamentExpansion directly after the principal Note in the MEI (the original MEI file stays untouched).
      * @param principalNote
-     * @param instruction
+     * @param ornamentExpansion
      */
-    private void appendInstruction(RichElement principalNote, Instruction instruction) {
-        Instruction existingInstruction = instructions.get(principalNote.getId());
-        if(existingInstruction != null) {
-            existingInstruction.append(instruction);
+    private void appendOrnamentExpansion(RichElement principalNote, OrnamentExpansion ornamentExpansion) {
+        OrnamentExpansion existingOrnamentExpansion = ornamentExpansions.get(principalNote.getId());
+        if(existingOrnamentExpansion != null) {
+            existingOrnamentExpansion.append(ornamentExpansion);
         }
         else { // create new one
-            instructions.put(principalNote.getId(), instruction);
-            Helper.appendChildAfterSibling(instruction.getInstructionElement(), principalNote.getElement());
+            ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
+            Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement(), principalNote.getElement());
         }
     }
 
@@ -359,12 +359,12 @@ public class MeiInstructifier {
      * @return
      */
     private boolean checkForCombinedOrnaments(RichElement ornament) {
-        if(prevOrnams.contains(ornament.getId())) // I found myself, so I have been instructified already
+        if(prevOrnams.contains(ornament.getId())) // I found myself, so I have been expanded already
             return true;
         if(ornament.has("prev")) {
             String prevId = ornament.get("prev");
             if(!prevOrnams.contains(prevId)) {
-                nextOrnams.put(ornament.getId(), ornament.getElement()); // remember me for later, do not instructify me right now
+                nextOrnams.put(ornament.getId(), ornament.getElement()); // remember me for later, do not expandOrnaments me right now
                 return true;
             }
         }
@@ -385,7 +385,7 @@ public class MeiInstructifier {
         Element nextOrnam = nextOrnams.get(ornament.get("next"));
         if(nextOrnam != null) {
             nextOrnams.remove(ornament.get("next")); // remove myself if I was in there
-            instructifyElement(nextOrnam);
+            expandOrnamentsElement(nextOrnam);
         }
     }
 
