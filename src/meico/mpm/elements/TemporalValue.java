@@ -44,6 +44,8 @@ public class TemporalValue {
     private double value = 0.0;
     private Domain domain = Domain.UNKNOWN;
 
+    private TemporalValue relationTo = null;
+
     /**
      * constructor, generates an instance with initial values
      * @param value
@@ -62,6 +64,19 @@ public class TemporalValue {
      */
     public static TemporalValue create(double value, Domain domain) {
         return new TemporalValue(value, domain);
+    }
+
+    public static TemporalValue createInRelationTo(TemporalValue relativeTo) {
+        TemporalValue temporal = new TemporalValue(relativeTo.value, Domain.RELATIVE);
+        temporal.setRelation(relativeTo);
+        return temporal;
+    }
+
+    public TemporalValue clone() {
+        TemporalValue temporal = new TemporalValue(this.value, this.domain);
+        if(hasRelation())
+            temporal.setRelation(this.relationTo);
+        return temporal;
     }
 
     /**
@@ -122,6 +137,49 @@ public class TemporalValue {
     }
 
     /**
+     * return the TempralValue to what this is in relation to
+     * @return
+     */
+    public TemporalValue getRelation() {
+        return  relationTo;
+    }
+
+    /**
+     * sets relation to what this is relative to. relation stack cannot be pure relative, it needs somewhen an absolute value for calculation
+     * @param relation
+     */
+    public void setRelation(TemporalValue relation) {
+        if(!relation.hasAbsoluteRoot())
+            return;
+        relationTo = relation;
+    }
+
+    /**
+     * removes the relation
+     */
+    public void removeRelation() {
+        relationTo = null;
+    }
+
+    /**
+     * returns if this has a relation
+     * @return
+     */
+    public boolean hasRelation() {
+        return relationTo != null;
+    }
+    /**
+     * returns if the relation stack has an absolute root
+     */
+    public boolean hasAbsoluteRoot() {
+        if(!isRelative())
+            return true;
+        if(relationTo == null)
+            return false;
+        return relationTo.hasAbsoluteRoot();
+    }
+
+    /**
      * returns a TemporalValue object that is relative in its value to value.
      * @param value
      * @return
@@ -130,7 +188,7 @@ public class TemporalValue {
         TemporalValue relative = create(value, Domain.RELATIVE);
 
         if(getValue() == value) {
-            relative.setValue("100");
+            relative.setValue(100);
             return relative;
         }
 
@@ -141,7 +199,7 @@ public class TemporalValue {
             lesserValue = getValue();
         }
 
-        double relativeValue = lesserValue * 100 / greaterValue;
+        double relativeValue = (lesserValue * 100) / greaterValue;
         relative.setValue(relativeValue);
 
         return relative;
@@ -152,10 +210,71 @@ public class TemporalValue {
      * @return
      */
     public TemporalValue getRelativeTo(TemporalValue temporal) {
-        if(!hasSameDomain(temporal))
+        if(temporal == null)
+            return null;
+        if(hasSameDomain(temporal))
+            return getRelativeTo(temporal.getValue());
+
+        if(!isRelative() && !temporal.isRelative())
             return null;
 
-        return getRelativeTo(temporal.getValue());
+        TemporalValue relative;
+        TemporalValue absolute;
+
+        if (temporal.isRelative()) {
+            absolute = this;
+            relative = temporal.clone();
+        }
+        else {
+            absolute = temporal;
+            relative = this.clone();
+        }
+
+        relative.setValue(absolute.getValue() * (relative.getValue() / 100));
+        return relative;
+    }
+
+    public TemporalValue getRelativeTo() {
+        TemporalValue absolute = relationTo.getAbsoluteTo();
+        return getRelativeTo(absolute);
+    }
+
+    public TemporalValue getAbsoluteTo(TemporalValue temporal) {
+        if (temporal == null) {
+            return null;
+        }
+        if(isRelative() && temporal.isRelative()) {
+            return null;
+        }
+        if(!isRelative() && !temporal.isRelative()) {
+            return this;
+        }
+
+
+        TemporalValue absolute;
+        TemporalValue relative;
+
+        if (temporal.isRelative()) {
+            absolute = this.clone();
+            relative = temporal;
+        }
+        else {
+            absolute = temporal.clone();
+            relative = this;
+        }
+
+        absolute.setValue((relative.getValue() * absolute.getValue()) / 100);
+
+        return absolute;
+    }
+
+    public TemporalValue getAbsoluteTo() {
+        if(!hasAbsoluteRoot())
+            return null;
+        if(!hasRelation())  // != isRelative
+            return this;
+
+        return getAbsoluteTo(relationTo);
     }
 
     /**
@@ -365,6 +484,12 @@ public class TemporalValue {
         if (m.matches()) {
             setValue(Double.parseDouble(m.group(1)));
             setDomain(fromDomainString(m.group(2)));
+            return;
+        }
+        try {
+            setValue(Double.parseDouble(valueDomain));
+        } catch (NumberFormatException e) {
+            // do nothing, value remains unchanged
         }
     }
 
