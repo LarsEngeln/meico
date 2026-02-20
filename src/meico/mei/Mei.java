@@ -244,10 +244,10 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
     }
 
     /**
-     * adds instructive readings for ornaments with graceNotes for the audio rendering only
+     * adds expansions for ornaments with graceNotes for the audio rendering only
      */
-    public Mei instructify() {
-        return (new MeiInstructifier()).instructify(this);
+    public Mei expandOrnaments() {
+        return (new MeiOrnamentExpander()).expandOrnaments(this);
     }
 
     /**
