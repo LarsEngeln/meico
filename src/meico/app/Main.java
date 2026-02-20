@@ -97,7 +97,6 @@ public class Main {
         File xslt = null;
         String xsltOutputExtension = "";
 //        boolean svg = false;
-        boolean instructify = false;
         boolean msm = false;
         boolean mpm = false;
         boolean musicxml = false;
@@ -132,7 +131,6 @@ public class Main {
             if ((args[i].equals("-e")) || (args[i].equals("--ignore-expansions"))) { ignoreExpansions = true; continue; }
             if ((args[i].equals("-ex")) || (args[i].equals("--expressive"))) { expressive = true; continue; }
 //            if ((args[i].equals("-g")) || (args[i].equals("--svg"))) { svg = true; continue; }
-            if ((args[i].equals("-s")) || (args[i].equals("--instructify"))) { instructify = true; continue; }
             if ((args[i].equals("-m")) || (args[i].equals("--msm"))) { msm = true; continue; }
             if ((args[i].equals("-f")) || (args[i].equals("--mpm"))) { mpm = true; continue; }
             if ((args[i].equals("-mx")) || (args[i].equals("--musicxml"))) { musicxml = true; continue; }
@@ -243,15 +241,15 @@ public class Main {
 
         if (!(msm || mpm || pitches || chroma || midi || wav || mp3 || cqt)) return 0;     // if no conversion is required, we are done here
 
-        // convert mei -> instructive mei (needed to prepare ornament rendering)
-        Mei instructiveMei = mei.instructify();
-        if(instructify)
-            instructiveMei.writeMei(Helper.getFilenameWithoutExtension(mei.getFile().getPath()) + "-instructive.mei"); // save the file
+        // convert mei -> expanded mei (needed to prepare ornament rendering)
+        Mei expandedMei = mei.expandOrnaments();
+        if(debug)
+            expandedMei.writeMei(Helper.getFilenameWithoutExtension(mei.getFile().getPath()) + "-expanded.mei"); // save the file
 
 
-        // convert (instructive) mei -> msm/mpm
+        // convert (expanded) mei -> msm/mpm
         System.out.println("Converting MEI to MSM and MPM.");
-        KeyValue<List<Msm>, List<Mpm>> msmpms = instructiveMei.exportMsmMpm(720, dontUseChannel10, ignoreExpansions, !debug);    // usually, the application should use mei.exportMsm(720); the cleanup flag is just for debugging (in debug mode no cleanup is done)
+        KeyValue<List<Msm>, List<Mpm>> msmpms = expandedMei.exportMsmMpm(720, dontUseChannel10, ignoreExpansions, !debug);    // usually, the application should use mei.exportMsm(720); the cleanup flag is just for debugging (in debug mode no cleanup is done)
         if (msmpms.getKey().isEmpty()) {
             System.err.println("MSM and MPM data could not be created.");
             return 1;
