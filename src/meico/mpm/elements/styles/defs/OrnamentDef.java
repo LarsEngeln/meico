@@ -334,8 +334,8 @@ public class OrnamentDef extends AbstractDef {
 
         /**
          * helper method for method apply() to set the ornament attributes on each note:
-         *      - ornament.date.offset or ornament.milliseconds.date.offset (an offset),
-         *      - ornament.duration or ornament.milliseconds.duration (absolute duration),
+         *      - ornament.date.offset, ornament.milliseconds.date.offset, or ornament.relative.date.offset (an offset),
+         *      - ornament.duration, ornament.milliseconds.duration (absolute duration), or ornament.relative.duration)
          *      - ornament.noteoff.shift (true/false)
          * @param dateOffset the offset to the date/milliseconds.date of the chord/notes
          * @param chord
@@ -353,11 +353,15 @@ public class OrnamentDef extends AbstractDef {
                     dateAttName = "ornament.milliseconds.date.offset";
                     durAttName = "ornament.milliseconds.duration";
                     break;
+                case RELATIVE:
+                    dateAttName = "ornament.relative.date.offset";
+                    durAttName = "ornament.relative.duration";
+                    break;
                 default:    // unknown domain
                     return null;
             }
 
-            // set the ornament.date.offset or ornament.milliseconds.date.offset, resp.
+            // set the ornament[.*].date.offset
             for (Element note : chord) {
                 Attribute ornamentDateAtt = Helper.getAttribute(dateAttName, note);
                 if (ornamentDateAtt != null) {
@@ -366,7 +370,7 @@ public class OrnamentDef extends AbstractDef {
                     note.addAttribute(new Attribute(dateAttName, String.valueOf(dateOffset)));
             }
 
-            // handle the ornament.duration or ornament.milliseconds.duration, resp.
+            // handle the ornament[.*].duration
             switch (this.noteOffShift) {
                 case False:
                     return null;
@@ -429,6 +433,9 @@ public class OrnamentDef extends AbstractDef {
                     break;
                 case MILLISECONDS:
                     ts.addAttribute(new Attribute("time.unit", "milliseconds"));
+                    break;
+                case RELATIVE:
+                    ts.addAttribute(new Attribute("time.unit", "relative"));
                     break;
 //            case RelativeToNoteDuration:
 //                throw new UnsupportedDataTypeException("The feature TemporalValue.Domain.RelativeToNoteDuration is not yet supported.");
