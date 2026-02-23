@@ -301,24 +301,32 @@ public class OrnamentationMap extends GenericMap {
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
             MsmElement ornament = new MsmElement(this.getElement(i));
+            MsmElement ornamNote = null;
+            for(KeyValue<Double, Element> dateElement : notes) {  // find the note
+                MsmElement note = new MsmElement(dateElement.getValue());
+
+                if (note.getId().equals(ornament.getId())) {
+                    ornamNote = note;
+
+                    break;
+                }
+            }
 
             if(ornament.get("name.ref").contains("grace")) {
+
+                if(ornamNote == null) { // grace note without principal note, so we guess the principal note by looking for the note before the ornament date
+                    ornamNote = new MsmElement(map.getElementBeforeAt(Double.parseDouble(ornament.get("date"))));
+                }
+
                 for(RichElement child : ornament.getChildren()) {
                     child.copyValue("date", ornament);
+
+                    copyNotePerfInformation((MsmElement) child, ornamNote);
+
                     map.addElement(child.getClonedElement());
                 }
             }
             else {
-                MsmElement ornamNote = null;
-                for(KeyValue<Double, Element> dateElement : notes) {  // find the note
-                    MsmElement note = new MsmElement(dateElement.getValue());
-
-                    if (note.getId().equals(ornament.getId())) {
-                        ornamNote = note;
-
-                        break;
-                    }
-                }
                 if(ornamNote == null)
                     continue;
                 toBeRemoved.add(ornamNote.getElement());
@@ -390,19 +398,9 @@ public class OrnamentationMap extends GenericMap {
                     if(note == null)
                         continue;
 
-                    note.createNewId(); // we want a new ID as wie generated multiple notes from the seed note
+                    copyNotePerfInformation(note, ornamNote);
+
                     noteOrder.set(j, note.getId());
-                    note.copyValue("date", ornamNote);
-                    note.copyValue("duration", ornamNote);
-                    note.copyValue("layer", ornamNote);
-                    note.copyValue("date.perf", ornamNote);
-                    note.copyValue("duration.perf", ornamNote);
-                    note.copyValue("velocity", ornamNote);
-                    note.copyValue("ornament.dynamics", ornamNote);
-                    note.copyValue("ornament.date.offset", ornamNote);
-                    note.copyValue("milliseconds.date", ornamNote);
-                    note.copyValue("date.end.perf", ornamNote);
-                    note.copyValue("milliseconds.date.end", ornamNote);
                     map.addElement(note.getElement());
                 }
                 ornament.set("note.order.perf", String.join(" ", noteOrder));
@@ -411,6 +409,21 @@ public class OrnamentationMap extends GenericMap {
         for(Element element : toBeRemoved) {
             map.removeElement(element);
         }
+    }
+
+    private static void copyNotePerfInformation(MsmElement note, MsmElement ornamNote) {
+        note.createNewId(); // we want a new ID as we might generated multiple notes from the seed note
+        note.copyValue("date", ornamNote);
+        note.copyValue("duration", ornamNote);
+        note.copyValue("layer", ornamNote);
+        note.copyValue("date.perf", ornamNote);
+        note.copyValue("duration.perf", ornamNote);
+        note.copyValue("velocity", ornamNote);
+        note.copyValue("ornament.dynamics", ornamNote);
+        note.copyValue("ornament.date.offset", ornamNote);
+        note.copyValue("milliseconds.date", ornamNote);
+        note.copyValue("date.end.perf", ornamNote);
+        note.copyValue("milliseconds.date.end", ornamNote);
     }
 
     /**
