@@ -197,11 +197,25 @@ public class OrnamentDef extends AbstractDef {
         if (def == null)
             return null;
 
-        switch (name.trim().toLowerCase()) {
+        String shortname = name.trim().toLowerCase();
+
+        switch (shortname) {
             case "arpeg":
             case "arpeggio":
                 def.setDynamicsGradient(-1.0, 1.0);
                 def.setTemporalSpread(-22.0, 44.0, TemporalValue.Domain.TICKS, 1.0, TemporalSpread.NoteOffShift.False);
+                break;
+            case "upper mordent":
+            case "lower mordent":
+                def.setDynamicsGradient(1.0, -1.0);
+                def.setTemporalSpread(0, 180.0, TemporalValue.Domain.TICKS, 0.9, TemporalSpread.NoteOffShift.Monophonic);
+                break;
+            case "grace unacc":
+                def.setDynamicsGradient(1.0, -1.0);
+                def.setTemporalSpread(-90.0, 90.0, TemporalValue.Domain.TICKS, 1.0, TemporalSpread.NoteOffShift.Monophonic);
+            case "grace acc":
+                def.setDynamicsGradient(1.0, -1.0);
+                def.setTemporalSpread(0, 90.0, TemporalValue.Domain.TICKS, 1.0, TemporalSpread.NoteOffShift.Monophonic);
                 break;
             default:
                 def.setDynamicsGradient(-1.0, 1.0);
