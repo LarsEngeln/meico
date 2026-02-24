@@ -1,5 +1,18 @@
 ### Version History
 
+#### v0.11.12 candidate
+- new methods for class `meico.mei.Helper`: adds variant for `findChild()` that finds child elements by attribute value, adds variant for `findSibling()` that finds sibling by ID, variant for `cloneElement()` that creates deep or flat element copies, variant for `createElement()` that creates elements with short UUID-based IDs, `removeAllAttributes()` removes all except specified attributes from element, `appendChildAfterSibling()` inserts child after sibling,  adds variants for `addUUID()` for short UUID-based xml:id attributes with or without namespace, `shiftNoteDiatonicly()` shifts note pitch diatonically, `getHalfstepsFromC()` returns semitones from C, `getHalfstepsBetween()` calculates semitone distance.
+- New class `meico.xml.RichElement` as an Attribute-first base wrapper for XML element access with methods for: attribute access (`get()`, `set()`, `has()`, `is()`, `getAsDouble()`, `getAsInteger()`, `copyValue()`), DOM manipulation (`appendChild()`, `getParent()`, `removeParent()`), child access (`getChildren()`, `getChildrenOfType()`, `getFirstChildByName()`, `getFromChild()`), and ID management (`getId()`, `setId()`, `createNewId()`). Supports `.ges` attribute handling and deep copying.
+- New class `meico.mei.MeiElement` extending RichElement with MEI namespace handling.
+- New class `meico.msm.MsmElement` extending RichElement with MSM-specific methods (`getNoteName()`, `getDuration()`, `isSameNote()`) and ID handling.
+- adds storing notes in `meico.mpm.elements.maps.data.OrnamentData`.
+- New dictionary `resources/ornaments.dict` for resolving ornament symbols with a list of pitch alterations according to the principal note.
+- New class `meico.mei.OrnamentExpansion` for managing ornament expansions with methods: `setLabel()`, `addCorrespondence()`, `addElement()`, `append()`, `getNotes()`, `getNote()`, `removeNote()`. Generates `<supplied>` (`getOrnamentExpansionElement()`) elements with `<graceGrp>` (`getGroupElement`) and handles duplicates.
+- New class `meico.mei.MeiOrnamentExpander` to pre-process the MEI (added as method `expand()` in class `mei.Mei`), creating and managing the expansion of ornaments, with methods for expanding ornaments (`createOrnamentLookUp()`, `expandOrnaments()`, `expandOrnamentsElement()`, `appendOrnamentExpansion()`,`checkForNextOrnament()`,`checkForCombinedOrnaments()`) based on type and context, to determine grace note correspondences (`getCorrespondingNoteOfGrace()`, `expandGrace()`, `flattenGraceGrp()`), and specific helper functions (`getOrnamentFullName()`, `getOrnamentFullNameFromSymbol()`, `getElementWithId()`, `collectAllNotes()`, `setAccidGes()`, `getCurrentAccid()`, `getHalfstepsBetween()`).
+- New methods in class `meico.mei.Mei2MsmMpmConverter` to integrate the ornament expansion into the MEI to MSM/MPM conversion process (`checkIfOrnament()`, `processOrnament()`, `addToOrnamentationMap()`), with helper methods (`flattenGraceGrp()`, `MeiNote2MsmNote()`, `getRptString()`). 
+- New class `meico.mpm.elements.TemporalValue` for temporal domain handling (milliseconds, ticks, prepares for note length, relative) with some basic conversion utilities.
+- enhances class `meico.mpm.elements.styles.defs.OrnamentDef` with the use of `meico.mpm.elements.TemporalValue` for its temporal attributes. Added some standard temporal spreads for ornaments.
+- New methods in class `meico.mpm.elements.maps.OrnamentationMap` to handle the new ornamentation data and render it to the map by applying ornament notes (`applyNotesToMaps()`, `copyNotePerfInformation()`) in `apply()`.
 
 #### v0.11.13
 - Expanded handling of MEI elements `oStaff` and `oLayer`. Element `ossia` will now be processed.
