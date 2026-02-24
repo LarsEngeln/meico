@@ -1,5 +1,6 @@
 package meico.mei;
 
+import javafx.util.Pair;
 import meico.xml.RichElement;
 import nu.xom.Element;
 import nu.xom.Elements;
@@ -28,6 +29,8 @@ public class MeiOrnamentExpander {
     private Map<String, Map<String, String>> currentAccids = new HashMap<>(); // all accids in the current measure, "oct"->"pname"->"accid"
     private Map<String, String> currentKey = new HashMap<>(); // accids of the current key, "pname"->"accid"
     private RichElement currentMeasure = null;
+
+    private ArrayList<Pair<RichElement, OrnamentExpansion>> endingGraces = new ArrayList<>();
 
     public MeiOrnamentExpander(Mei mei) {
         try {
@@ -104,6 +107,11 @@ public class MeiOrnamentExpander {
                     currentKey.put(keyAccid.get("pname"), keyAccid.get("accid"));
                     continue;
                 case "measure":
+                    for(Pair<RichElement, OrnamentExpansion> grace : endingGraces) {                // if we have ending graces, append them now before going to next measure
+                        appendOrnamentExpansion(grace.getKey(), grace.getValue(), true);
+                    }
+                    endingGraces.clear();
+
                     currentMeasure = new RichElement(e);
                     currentAccids = new HashMap<>();
                 case "note":
@@ -233,6 +241,9 @@ public class MeiOrnamentExpander {
         if(graceType == null || graceType.equals("unacc"))
             graceType = "acc";
         String ornamentName = "grace " + graceType;
+        if(!graceIsBefore.get()) {
+            ornamentName = ornamentName + " delayed";
+        }
 
 
         OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
@@ -269,7 +280,10 @@ public class MeiOrnamentExpander {
             ornamentExpansion.addElement(graceNote);
         }
 
-        appendOrnamentExpansion(principalNote, ornamentExpansion, !graceIsBefore.get());
+        if(graceIsBefore.get())
+            appendOrnamentExpansion(principalNote, ornamentExpansion, !graceIsBefore.get());
+        else
+            endingGraces.add(new Pair(principalNote, ornamentExpansion));
     }
 
     /**
