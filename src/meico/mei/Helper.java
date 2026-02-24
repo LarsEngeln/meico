@@ -213,6 +213,8 @@ public class Helper {
         if (index >= (ofThis.getParent().getChildCount() - 1))
             return null;
 
+        if( ofThis.getParent().getChild(index + 1) instanceof Text)
+            return (Element) ofThis.getParent().getChild(index + 2);
         return (Element) ofThis.getParent().getChild(index + 1);
     }
 
@@ -260,6 +262,8 @@ public class Helper {
         if (index == 0)
             return null;
 
+        if(ofThis.getParent().getChild(index - 1) instanceof Text)
+            return (Element) ofThis.getParent().getChild(index - 2);
         return (Element) ofThis.getParent().getChild(index - 1);
     }
 
