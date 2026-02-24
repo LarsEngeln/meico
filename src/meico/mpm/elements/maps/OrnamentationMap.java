@@ -362,6 +362,14 @@ public class OrnamentationMap extends GenericMap {
                         notesToAdd.add(noteOrder.get(k));
                     }
                 }
+                for(RichElement child : children) {
+                    if(child.getId().equals(noteOrder.get(rptStart))) {
+                        MsmElement note = new MsmElement(child.getElement());
+                        if(note.has("intm") && note.get("intm").equals("0.0hs"))
+                            notesToAdd.add(noteOrder.get(rptStart)); // always land on principal note of the repetition, might add doubles -> need to sanitize
+                        break;
+                    }
+                }
                 for(String n : notesToAdd) {
                     noteOrder.add(rptEnd, n);
                     rptEnd++;
@@ -369,6 +377,7 @@ public class OrnamentationMap extends GenericMap {
                 ornament.set("note.order.perf", String.join(" ", noteOrder));
             }
 
+            MsmElement lastNote = null;
             for (int j = 0; j < noteOrder.size();) {
                 String noteId = noteOrder.get(j);
                 MsmElement note = null;
@@ -378,10 +387,15 @@ public class OrnamentationMap extends GenericMap {
                         break;
                     }
                 }
+                if(note != null && lastNote != null && note.isSameNote(lastNote)) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
+                    note = null;
+                }
+
                 if(note == null) {
                     noteOrder.remove(j);
                     continue;
                 }
+                lastNote = note;
 
                 copyNotePerfInformation(note, ornamNote);
 
