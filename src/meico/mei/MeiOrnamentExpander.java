@@ -31,7 +31,10 @@ public class MeiOrnamentExpander {
     private RichElement currentMeasure = null;
 
     private ArrayList<Pair<RichElement, OrnamentExpansion>> endingGraces = new ArrayList<>();
-
+    /**
+     * constructor
+     * @param mei the MEI to be expanded
+     */
     public MeiOrnamentExpander(Mei mei) {
         try {
             createOrnamentLookUp();
@@ -40,6 +43,9 @@ public class MeiOrnamentExpander {
         }
     }
 
+    /**
+     * default constructor, if MEI is not yet available
+     */
     public MeiOrnamentExpander()  {
         try {
             createOrnamentLookUp();
@@ -51,7 +57,7 @@ public class MeiOrnamentExpander {
     /**
      * adds expanded readings for ornaments
      * @param mei the MEI to be expanded
-    * @result the expanded MEI
+     * @result the expanded MEI
      */
     public Mei expandOrnaments(Mei mei) {
         if (mei == null) {
@@ -137,14 +143,17 @@ public class MeiOrnamentExpander {
                     break;
                 case "accid":
                     break;
-
-                //default:
-                //    continue;                                                   // ignore it and its children
             }
             this.expandOrnaments(e);
         }
     }
 
+    /**
+     * searches for the element with the given id in the list of elements
+     * @param elements
+     * @param id
+     * @return the element with the given id, or null if no such element is found
+     */
     private RichElement getElementWithId(ArrayList<RichElement> elements, String id) {
         for(RichElement element : elements) {
             if(element.getId() != null && element.getId().equals(id))
@@ -154,7 +163,9 @@ public class MeiOrnamentExpander {
     }
 
     /**
-     *
+     * searches for the corresponding principal note of a grace note, by searching for slurs and surrounding notes.
+     * If no slur is found, the grace note is before the principal note if there is a following note,
+     * and after if there is a previous note. If both are found, the grace note is places according to "unacc"/"acc"
      * @param element
      * @param graceIsBefore
      * @return true if grace is before corresponding, false if is after
@@ -228,6 +239,12 @@ public class MeiOrnamentExpander {
         return principalNote;
     }
 
+    /**
+     * expands a grace note or a graceGrp to an OrnamentExpansion,
+     * by searching for the corresponding principal note.
+     * The OrnamentExpansion is inserted into the given MEI (the original MEI file stays untouched).
+     * @param element
+     */
     private void expandGrace(RichElement element) {
         ArrayList<RichElement> notes = collectAllNotes(element);
 
