@@ -2906,6 +2906,11 @@ public class Mei2MsmMpmConverter {
         addToOrnamentationMap(xmlElement, od);
     }
 
+    /**
+     * helper method to get the string representation of a barline repeat sign
+     * @param elem
+     * @return
+     */
     private String getRptString(RichElement elem) {
         String rptStr = "";
         switch(elem.get("form")) {
@@ -2922,7 +2927,13 @@ public class Mei2MsmMpmConverter {
         }
         return rptStr;
     }
-
+    /**
+     * helper method to compute the number of halfsteps between two notes,
+     * taking into account their pitch name, octave and accidental information
+     * @param principalNote
+     * @param auxiliaryNote
+     * @return
+     */
     private double getHalfstepsBetween(Element principalNote, Element auxiliaryNote) {
         RichElement pri = new RichElement(principalNote);
         RichElement aux = new RichElement(auxiliaryNote);
@@ -2965,6 +2976,12 @@ public class Mei2MsmMpmConverter {
         return halfsteps;
     }
 
+    /**
+     * helper method to add the ornamentation data to the correct ornamentationMap(s) in MPM
+     * and to make sure that the corresponding styleDef is defined in MPM
+     * @param el
+     * @param od
+     */
     private void addToOrnamentationMap(Element el, OrnamentData od) {               // TODO: use in processArpeg
         // make sure that the ornamentationStyle is defined in a global ornamentation style of name "MEI export"
         OrnamentationStyle ornamentationStyle = (OrnamentationStyle) this.currentPerformance.getGlobal().getHeader().getStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export"); // get the global ornamentationSyles/styleDef element
