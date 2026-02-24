@@ -243,8 +243,7 @@ public class Mei2MsmMpmConverter {
                     continue;
 
                 case "chord":
-                    if (e.getAttribute("grace") != null) {                      // for expressive performances, we handle these somehow like other ornaments
-                        this.processOrnament(e);
+                    if (e.getAttribute("grace") != null) {                   // for expressive performances, we handle these somehow like other ornaments
                         continue;
                     }
                     this.processChord(e);
@@ -313,7 +312,7 @@ public class Mei2MsmMpmConverter {
                     continue;                                                   // TODO: to be treated by a supplied
 
                 case "graceGrp":
-                    this.processOrnament(e);                                    // is treated as ornament
+                                                                                // is treated as ornament
                     continue;
 
                 case "grpSym":
@@ -427,8 +426,7 @@ public class Mei2MsmMpmConverter {
                     break;
 
                 case "note":
-                    if (e.getAttribute("grace") != null) {                      // for expressive performances, we handle these like other ornaments
-                        this.processOrnament(e);
+                    if (e.getAttribute("grace") != null) {                   // for expressive performances, we handle these like other ornaments
                         continue;
                     }
                     this.processNote(e);

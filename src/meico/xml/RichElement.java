@@ -195,6 +195,18 @@ public class RichElement {
     }
 
     /**
+     * returns all children with the given name as MeiElements
+     * @param name
+     * @return
+     */
+    public ArrayList<RichElement> getChildrenOfType(String name) {
+        LinkedList<Element> elements = Helper.getAllChildElements(name, this.element);
+        ArrayList<RichElement> children = new ArrayList<>();
+        elements.forEach(elem -> children.add(new RichElement(elem)));
+        return children;
+    }
+
+    /**
      * returns the Attribute's value from a child with same name like attributeName (Example: attributeName = "accid" -> find child <accid accid="n"/>)
      * @param attributeName
      * @return

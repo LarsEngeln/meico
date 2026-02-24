@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class adds ornamentExpansions for ornaments, by creating notes to be played within a <supplied></supplied> after the principal note.
@@ -26,6 +27,7 @@ public class MeiOrnamentExpander {
 
     private Map<String, Map<String, String>> currentAccids = new HashMap<>(); // all accids in the current measure, "oct"->"pname"->"accid"
     private Map<String, String> currentKey = new HashMap<>(); // accids of the current key, "pname"->"accid"
+    private RichElement currentMeasure = null;
 
     public MeiOrnamentExpander(Mei mei) {
         try {
@@ -102,6 +104,7 @@ public class MeiOrnamentExpander {
                     currentKey.put(keyAccid.get("pname"), keyAccid.get("accid"));
                     continue;
                 case "measure":
+                    currentMeasure = new RichElement(e);
                     currentAccids = new HashMap<>();
                 case "note":
                     RichElement note = new RichElement(e);
@@ -111,6 +114,18 @@ public class MeiOrnamentExpander {
                     if(!currentAccids.containsKey(note.get("oct")))
                         currentAccids.put(note.get("oct"), new HashMap<>());
                     currentAccids.get(note.get("oct")).put(note.get("pname"), accid);
+
+                    if(note.has("grace"))
+                        expandGrace(note);
+                    break;
+                case "chord":
+                    RichElement chord = new RichElement(e);
+                    if(chord.has("grace"))
+                        expandGrace(chord);
+                    break;
+                case "graceGrp":
+                    RichElement graceGrp = new RichElement(e);
+                    expandGrace(graceGrp);
                     break;
                 case "accid":
                     break;
@@ -120,6 +135,165 @@ public class MeiOrnamentExpander {
             }
             this.expandOrnaments(e);
         }
+    }
+
+    private RichElement getElementWithId(ArrayList<RichElement> elements, String id) {
+        for(RichElement element : elements) {
+            if(element.getId() != null && element.getId().equals(id))
+                return element;
+        }
+        return null;
+    }
+
+    /**
+     *
+     * @param element
+     * @param graceIsBefore
+     * @return true if grace is before corresponding, false if is after
+     */
+    private RichElement getCorrespondingNoteOfGrace(RichElement element, AtomicBoolean graceIsBefore) {
+        RichElement principalNote = null;
+
+        if(this.currentMeasure == null)
+            return null;
+
+        ArrayList<RichElement> slurs = this.currentMeasure.getChildrenOfType("slur");
+        ArrayList<RichElement> notes = collectAllNotes(element);
+
+        for(RichElement slur : slurs) {
+            RichElement note = getElementWithId(notes, slur.get("startid"));
+            if (note != null) {
+                String endid = slur.get("endid");
+                Element principalNoteElement = Helper.findSibling(element.getElement(), endid);
+                if (principalNoteElement != null) {
+                    principalNote = new RichElement(principalNoteElement);
+                    graceIsBefore.set(true);
+                    return principalNote;
+                }
+            }
+            note = getElementWithId(notes, slur.get("endid"));
+            if (note != null) {
+                String startid = slur.get("startid");
+                Element principalNoteElement = Helper.findSibling(element.getElement(), startid);
+                if (principalNoteElement != null) {
+                    principalNote = new RichElement(principalNoteElement);
+                    graceIsBefore.set(false);
+                    return principalNote;
+                }
+            }
+        }
+
+        // No slur found: search the surrounding
+        Element previousElement = Helper.getPreviousSiblingElement(element.getElement());
+        Element nextElement = Helper.getNextSiblingElement(element.getElement());
+
+        if (nextElement == null && previousElement == null) {
+            graceIsBefore.set(true);
+            return null;
+        }
+        if (nextElement != null && previousElement == null) {
+            principalNote = new RichElement(nextElement);
+            graceIsBefore.set(true);
+            return principalNote;
+        }
+        if (previousElement != null && nextElement == null) {
+            principalNote = new RichElement(previousElement);
+            graceIsBefore.set(false);
+            return principalNote;
+        }
+
+        // if both != null
+        String graceType = element.get("grace");
+        if(graceType == null)
+            graceType = "";
+
+        if(!graceType.equals("unacc") && nextElement.getLocalName().equals("note") || nextElement.getLocalName().equals("chord")) {
+            principalNote = new RichElement(nextElement);
+            graceIsBefore.set(true);
+        }
+        if(previousElement.getLocalName().equals("note") || previousElement.getLocalName().equals("chord")) {
+            principalNote = new RichElement(previousElement);
+            graceIsBefore.set(false);
+        }
+        principalNote = new RichElement(nextElement);
+        graceIsBefore.set(true);
+        return principalNote;
+    }
+
+    private void expandGrace(RichElement element) {
+        ArrayList<RichElement> notes = collectAllNotes(element);
+
+        AtomicBoolean graceIsBefore = new AtomicBoolean(true);
+        RichElement principalNote = getCorrespondingNoteOfGrace(element, graceIsBefore);
+
+        if(principalNote == null)
+            return;
+
+        String graceType = element.get("grace");
+        if(graceType == null || graceType.equals("unacc"))
+            graceType = "acc";
+        String ornamentName = "grace " + graceType;
+
+
+        OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
+        ornamentExpansion.addCorrespondence(principalNote); // sets the corresponds of the OrnamentExpansion to the ornament, as the ornament has a correspondence to the principalNote via "startid"
+        ornamentExpansion.setLabel(ornamentName);
+
+        boolean principalIsNote = principalNote.getName().equals("note");
+
+        if(!graceIsBefore.get() && principalIsNote) {
+            RichElement graceNote = new RichElement("note");
+            graceNote.set("oct", String.valueOf(principalNote.get("oct")));
+            graceNote.set("pname", principalNote.get("pname"));
+            ornamentExpansion.addElement(graceNote);
+        }
+
+        RichElement halfStepsTo = principalNote;
+        if(!principalIsNote) {
+           halfStepsTo = notes.get(notes.size() - 1);
+        }
+        for (RichElement n : notes) {
+            RichElement note = new RichElement(n.getElement(), true);
+
+            if(halfStepsTo != null) {
+                double halfsteps = getHalfstepsBetween(halfStepsTo, note);
+                note.set("intm", String.valueOf(halfsteps) + "hs");
+            }
+            ornamentExpansion.addElement(note);
+        }
+
+        if(graceIsBefore.get()) {
+            RichElement graceNote = new RichElement("note");
+            graceNote.set("oct", String.valueOf(principalNote.get("oct")));
+            graceNote.set("pname", principalNote.get("pname"));
+            ornamentExpansion.addElement(graceNote);
+        }
+
+        appendOrnamentExpansion(principalNote, ornamentExpansion, !graceIsBefore.get());
+    }
+
+    /**
+     * Recursively collects all note and chord elements from the given RichElement.
+     * Traverses the entire element tree regardless of nesting depth.
+     * @param element the element to collect notes from
+     * @return a list of all RichElement notes and chords found
+     */
+    private ArrayList<RichElement> collectAllNotes(RichElement element) {
+        ArrayList<RichElement> notes = new ArrayList<RichElement>();
+        String elementName = element.getName();
+
+        // If this element is a note or chord, add it to the list
+        if (elementName.equals("note") || elementName.equals("chord")) {
+            notes.add(element);
+        }
+
+        // Recursively traverse all children
+        ArrayList<RichElement> children = element.getChildren();
+        for (RichElement child : children) {
+            notes.addAll(collectAllNotes(child));
+        }
+
+        return notes;
     }
 
     /**
@@ -196,7 +370,7 @@ public class MeiOrnamentExpander {
         }
 
         OrnamentExpansion ornamentExpansion = createOrnamentExpansion(ornamFullName, principalNote, ornament);
-        appendOrnamentExpansion(principalNote, ornamentExpansion);
+        appendOrnamentExpansion(principalNote, ornamentExpansion, true);
 
         checkForNextOrnament(ornament);
     }
@@ -338,18 +512,49 @@ public class MeiOrnamentExpander {
     }
 
     /**
+     * flattens the XML tree of a graceGrp to a simple list of graceGrps. Elements like notes not being in a graceGrp will get grouped ("grp1 note1 note2 grp2 note3" will become "grp1 grp3 grp2 grp4").
+     * @param element
+     * @return
+     */
+    private ArrayList<RichElement> flattenGraceGrp(RichElement element) {
+        ArrayList<RichElement> children = element.getChildren();
+        ArrayList<RichElement> graceGrps = new ArrayList<>();
+
+        RichElement graceGrp = new RichElement("graceGrp");
+        for (RichElement child : children) {
+            if(child.getName().equals("graceGrp") || child.getName().equals("beam")) {
+                if(!graceGrp.getChildren().isEmpty()) {
+                    graceGrps.add(graceGrp);
+                    graceGrp = new RichElement("graceGrp");
+                }
+
+                graceGrps.addAll(flattenGraceGrp(child));                   // flatten all children
+                continue;
+            }
+
+            graceGrp.appendChild(child);                                    // add element to a new graceGrp, if it was not a graceGrp itself
+        }
+
+        if(!graceGrp.getChildren().isEmpty()) {
+            graceGrps.add(graceGrp);
+        }
+        return graceGrps;
+    }
+
+    /**
      * appends the ornamentExpansion directly after the principal Note in the MEI (the original MEI file stays untouched).
      * @param principalNote
      * @param ornamentExpansion
+     * @param atEnd
      */
-    private void appendOrnamentExpansion(RichElement principalNote, OrnamentExpansion ornamentExpansion) {
+    private void appendOrnamentExpansion(RichElement principalNote, OrnamentExpansion ornamentExpansion, boolean atEnd) {
         OrnamentExpansion existingOrnamentExpansion = ornamentExpansions.get(principalNote.getId());
         if(existingOrnamentExpansion != null) {
-            existingOrnamentExpansion.append(ornamentExpansion);
+            existingOrnamentExpansion.append(ornamentExpansion, atEnd);
         }
         else { // create new one
             ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
-            Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement(), principalNote.getElement());
+            Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement().getElement(), principalNote.getElement());
         }
     }
 

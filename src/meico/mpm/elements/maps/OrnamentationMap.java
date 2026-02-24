@@ -312,107 +312,95 @@ public class OrnamentationMap extends GenericMap {
                 }
             }
 
-            if(ornament.get("name.ref").contains("grace")) {
+            if(ornamNote == null)
+                continue;
+            toBeRemoved.add(ornamNote.getElement());
+            ornament.copyValue("date", ornamNote);
+            ArrayList<RichElement> children = ornament.getChildren();
+            ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
+            Map<Integer, Integer> repeats = new HashMap<>();
 
-                if(ornamNote == null) { // grace note without principal note, so we guess the principal note by looking for the note before the ornament date
-                    ornamNote = new MsmElement(map.getElementBeforeAt(Double.parseDouble(ornament.get("date"))));
-                }
-
-                for(RichElement child : ornament.getChildren()) {
-                    child.copyValue("date", ornament);
-
-                    copyNotePerfInformation((MsmElement) child, ornamNote);
-
-                    map.addElement(child.getClonedElement());
-                }
-            }
-            else {
-                if(ornamNote == null)
+            int noteIndex = 0;
+            int repeatStart = noteIndex;
+            for(int j = 0; j < noteOrder.size();) {
+                String order = noteOrder.get(j);
+                if(order.contains("#")) {
+                    noteOrder.set(j, order.replaceAll("#", ""));
+                    noteIndex++;
+                    j++;
                     continue;
-                toBeRemoved.add(ornamNote.getElement());
-                ornament.copyValue("date", ornamNote);
-                ArrayList<RichElement> children = ornament.getChildren();
-                ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
-                Map<Integer, Integer> repeats = new HashMap<>();
-
-                int noteIndex = 0;
-                int repeatStart = noteIndex;
-                for(int j = 0; j < noteOrder.size();) {
-                    String order = noteOrder.get(j);
-                    if(order.contains("#")) {
-                        noteOrder.set(j, order.replaceAll("#", ""));
-                        noteIndex++;
-                        j++;
-                        continue;
-                    }
-
-                    switch(order) {
-                        case "|:":
-                            repeatStart = noteIndex;
-                            break;
-                        case ":|":
-                            repeats.put(repeatStart, noteIndex);
-                            break;
-                        case "|":
-                    }
-
-                    noteOrder.remove(j);
                 }
 
-
-                Double rel = ornamNote.getDuration() / noteOrder.size();
-
-                int rptNoteLength = 135; //32th
-                double maxNotes = Math.ceil(ornamNote.getDuration() / rptNoteLength);
-
-
-                if(!repeats.isEmpty() && maxNotes > noteOrder.size()) { // insert a repetition, as it is needed;
-                    ArrayList<String> notesToAdd = new ArrayList<>();
-                    int rptStart = repeats.keySet().iterator().next();
-                    int rptEnd = repeats.get(rptStart);
-                    int rptNotesAmount = rptEnd - rptStart;
-
-                    while(maxNotes >= (notesToAdd.size() + noteOrder.size() + rptNotesAmount)) {
-                        for (int k = rptStart; k < rptEnd; ++k) {
-                            notesToAdd.add(noteOrder.get(k));
-                        }
-                    }
-                    for(String n : notesToAdd) {
-                        noteOrder.add(rptEnd, n);
-                        rptEnd++;
-                    }
-                    ornament.set("note.order.perf", String.join(" ", noteOrder));
+                switch(order) {
+                    case "|:":
+                        repeatStart = noteIndex;
+                        break;
+                    case ":|":
+                        repeats.put(repeatStart, noteIndex);
+                        break;
+                    case "|":
                 }
 
+                noteOrder.remove(j);
+            }
 
 
-                for (int j = 0; j < noteOrder.size(); ++j) {
-                    String noteId = noteOrder.get(j);
-                    MsmElement note = null;
-                    for(RichElement child : children) {
-                        if(child.getId().equals(noteId)) {
-                            note = new MsmElement(child.getElement(), true);
-                            break;
-                        }
+            Double rel = ornamNote.getDuration() / noteOrder.size();
+
+            int rptNoteLength = 135;
+            double maxNotes = Math.ceil(ornamNote.getDuration() / rptNoteLength);
+
+
+            if(!repeats.isEmpty() && maxNotes > noteOrder.size()) { // insert a repetition, as it is needed;
+                ArrayList<String> notesToAdd = new ArrayList<>();
+                int rptStart = repeats.keySet().iterator().next();
+                int rptEnd = repeats.get(rptStart);
+                int rptNotesAmount = rptEnd - rptStart;
+
+                while(maxNotes >= (notesToAdd.size() + noteOrder.size() + rptNotesAmount)) {
+                    for (int k = rptStart; k < rptEnd; ++k) {
+                        notesToAdd.add(noteOrder.get(k));
                     }
-                    if(note == null)
-                        continue;
-
-                    copyNotePerfInformation(note, ornamNote);
-
-                    noteOrder.set(j, note.getId());
-                    map.addElement(note.getElement());
+                }
+                for(String n : notesToAdd) {
+                    noteOrder.add(rptEnd, n);
+                    rptEnd++;
                 }
                 ornament.set("note.order.perf", String.join(" ", noteOrder));
             }
+
+            for (int j = 0; j < noteOrder.size();) {
+                String noteId = noteOrder.get(j);
+                MsmElement note = null;
+                for(RichElement child : children) {
+                    if(child.getId().equals(noteId)) {
+                        note = new MsmElement(child.getElement(), true);
+                        break;
+                    }
+                }
+                if(note == null) {
+                    noteOrder.remove(j);
+                    continue;
+                }
+
+                copyNotePerfInformation(note, ornamNote);
+
+                noteOrder.set(j, note.getId());
+                map.addElement(note.getElement());
+                ++j;
+            }
+            ornament.set("note.order.perf", String.join(" ", noteOrder));
         }
+
         for(Element element : toBeRemoved) {
             map.removeElement(element);
         }
     }
 
-    private static void copyNotePerfInformation(MsmElement note, MsmElement ornamNote) {
+    private static void copyNotePerfInformation(RichElement note, MsmElement ornamNote) {
         note.createNewId(); // we want a new ID as we might generated multiple notes from the seed note
+        if(ornamNote == null)
+            return;
         note.copyValue("date", ornamNote);
         note.copyValue("duration", ornamNote);
         note.copyValue("layer", ornamNote);
