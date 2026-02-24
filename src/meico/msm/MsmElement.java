@@ -13,45 +13,88 @@ import java.util.*;
  */
 public class MsmElement extends RichElement {
 
-
+    /**
+     * constructor from XML element
+     * @param element
+     */
     public MsmElement(Element element) {
         super(element);
     }
+
+    /**
+     * constructor from XML element with option for deep copy
+     * @param element
+     * @param deepCopy
+     */
     public MsmElement(Element element, boolean deepCopy) {
         super(element, deepCopy);
     }
+    /**
+     * constructor from local name
+     * @param localName
+     */
     public MsmElement(String localName)  {
         super(localName);
     }
 
+    /**
+     * initializes the id of the element. If there is no id, a new one is created and assigned to the element.
+     */
     private void initId() {
         this.id = this.get("id");
         if(this.id == null) {
             this.id = Helper.addUUID(this.element, true, false);
         }
     }
+
+    /**
+     * sets the id of the element and adds it as an attribute to the element
+     * @param id
+     */
     public void setId(String id) {
         this.id = id;
         Attribute a = new Attribute("id", this.id);                              // create an attribute
         this.element.addAttribute(a);                                                 // add attribute to the element
     }
+
+    /**
+     * creates a new id for the element and assigns it to the element. The new id is generated using the Helper.addUUID function.
+     * @return
+     */
     public String createNewId() {
         this.id = Helper.addUUID(this.element, true, false);
         return getId();
     }
 
+    /**
+     * returns the pitchname
+     * @return
+     */
     public String getNoteName() {
         return get("pitchname");
     }
 
+    /**
+     * returns the duration
+     * @return
+     */
     public Double getDuration() {
         return getAsDouble("duration");
     }
 
+    /**
+     * returns the octave
+     * @return
+     */
     public Integer getOctave() {
         return getAsInteger("octave");
     }
 
+    /**
+     * compares this note to another note and returns true if they have the same pitchname and octave, false otherwise
+     * @param note
+     * @return
+     */
     public boolean isSameNote(MsmElement note) {
         if (note == null) return false;
         if (!this.getNoteName().equals(note.getNoteName())) return false;
