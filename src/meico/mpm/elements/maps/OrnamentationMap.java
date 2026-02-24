@@ -294,7 +294,13 @@ public class OrnamentationMap extends GenericMap {
         this.renderAllNonmillisecondsModifiersToMap(map);   // render ornamentation modifier attributes into .perf and velocity attributes
     }
 
-
+    /**
+     * All ornamentation notes are added to the map (including resolving repetitions like in trills),
+     * and the performance attributes of the notes are set according to the ornamentation data.
+     * This is meant to be applied before all other transformations,
+     * as it will add new notes to the map which might be processed by the other transformations as well.
+     * @param map
+     */
     public void applyNotesToMaps(GenericMap map) {
         ArrayList<Element> toBeRemoved = new ArrayList<>();
         ArrayList<KeyValue<Double, Element>> notes = map.getAllElementsOfType("note");
@@ -411,6 +417,11 @@ public class OrnamentationMap extends GenericMap {
         }
     }
 
+    /**
+     * copy the performance attributes of the original note to the ornament note.
+     * @param note
+     * @param ornamNote
+     */
     private static void copyNotePerfInformation(RichElement note, MsmElement ornamNote) {
         note.createNewId(); // we want a new ID as we might generated multiple notes from the seed note
         if(ornamNote == null)

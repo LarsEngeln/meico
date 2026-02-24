@@ -78,6 +78,12 @@ public class Helper {
         return null;
     }
 
+    /**
+     * find sibling of node by id
+     * @param node
+     * @param id
+     * @return
+     */
     public static Element findSibling(Element node, String id) {
         return Helper.findChild(Helper.getParentElement(node), id);
     }
