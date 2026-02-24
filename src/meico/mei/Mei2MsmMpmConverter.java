@@ -2927,54 +2927,7 @@ public class Mei2MsmMpmConverter {
         }
         return rptStr;
     }
-    /**
-     * helper method to compute the number of halfsteps between two notes,
-     * taking into account their pitch name, octave and accidental information
-     * @param principalNote
-     * @param auxiliaryNote
-     * @return
-     */
-    private double getHalfstepsBetween(Element principalNote, Element auxiliaryNote) {
-        RichElement pri = new RichElement(principalNote);
-        RichElement aux = new RichElement(auxiliaryNote);
 
-        double halfsteps = 0.0;
-
-        String priAccid = "";
-        String auxAccid = "";
-
-        if(pri.has("accid")) {
-            priAccid = pri.get("accid");
-        } else {
-            for(Element accid : this.accid) {
-                RichElement acc = new RichElement(accid);
-                if(acc.get("pname").equals(pri.get("pname")) && acc.get("oct").equals(pri.get("oct"))) {
-                    priAccid = acc.get("accid");
-                    break;
-                }
-            }
-        }
-
-        if(aux.has("accid")) {
-            auxAccid = aux.get("accid");
-        } else {
-            for(Element accid : this.accid) {
-                RichElement acc = new RichElement(accid);
-                if(acc.get("pname").equals(aux.get("pname")) && acc.get("oct").equals(aux.get("oct"))) {
-                    auxAccid = acc.get("accid");
-                    break;
-                }
-            }
-        }
-
-        halfsteps = Helper.getHalfstepsBetween(pri.get("pname"), aux.get("pname"));
-        halfsteps = halfsteps + (12 * (Integer.parseInt(aux.get("oct")) - Integer.parseInt(pri.get("oct"))));
-
-        halfsteps = halfsteps - Helper.accidString2decimal(priAccid);
-        halfsteps = halfsteps + Helper.accidString2decimal(auxAccid);
-
-        return halfsteps;
-    }
 
     /**
      * helper method to add the ornamentation data to the correct ornamentationMap(s) in MPM
