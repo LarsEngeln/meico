@@ -51,4 +51,11 @@ public class MsmElement extends RichElement {
     public Integer getOctave() {
         return getAsInteger("octave");
     }
+
+    public boolean isSameNote(MsmElement note) {
+        if (note == null) return false;
+        if (!this.getNoteName().equals(note.getNoteName())) return false;
+        if (!this.getOctave().equals(note.getOctave())) return false;
+        return true;
+    }
 }
