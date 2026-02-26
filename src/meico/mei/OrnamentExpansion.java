@@ -113,27 +113,13 @@ public class OrnamentExpansion {
      * @param ornamentExpansion
      * @param atEnd
      */
-    public void append(OrnamentExpansion ornamentExpansion, boolean atEnd) {
-        RichElement lastNote = getNote(notes.size()-1);
-        RichElement firstNote = ornamentExpansion.getNote(0);
-
-        if(lastNote.get("pname").equals(firstNote.get("pname"))
-                && lastNote.get("accid") == (firstNote.get("accid"))
-                && lastNote.get("oct").equals(firstNote.get("oct"))) {
-            ornamentExpansion.removeNote(0);
-        }
-
+    public void append(OrnamentExpansion ornamentExpansion) {
         RichElement child = ornamentExpansion.getGroupElement();
         ParentNode parent = child.getElement().getParent();
         if (parent != null) {
             parent.removeChild(child.getElement());
         }
-        if(atEnd)
-            this.ornamentExpansionElement.appendChild(child);
-        else {
-            ornamentExpansion.getOrnamentExpansionElement().appendChild(this.getGroupElement());
-            this.ornamentExpansionElement = ornamentExpansion.getOrnamentExpansionElement();
-        }
+        this.ornamentExpansionElement.appendChild(child);
         ornamentExpansionElement.set("label", ornamentExpansionElement.get("label") + ", " + child.get("label"));
     }
 }
