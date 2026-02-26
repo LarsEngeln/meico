@@ -1,6 +1,7 @@
 package meico.mei;
 
 import javafx.util.Pair;
+import meico.supplementary.Stopwatch;
 import meico.xml.RichElement;
 import nu.xom.Element;
 import nu.xom.Elements;
@@ -20,17 +21,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class MeiOrnamentExpander {
     public Mei mei;
-    private Map<String, OrnamentExpansion> ornamentExpansions = new HashMap<String, OrnamentExpansion>(); // ornament's startid to ornamentExpansion
-    private Map<String, List<String>> ornamentLookup = new HashMap<String, List<String>>();
+    private Map<String, OrnamentExpansion> ornamentExpansions   = new HashMap<String, OrnamentExpansion>(); // ornament's startid to ornamentExpansion
+    private Map<String, List<String>> ornamentLookup            = new HashMap<String, List<String>>();
 
-    private ArrayList<String> prevOrnams = new ArrayList<String>(); // already expanded ornams with that are "previous" to another ornam
-    private Map<String, Element> nextOrnams = new HashMap<String, Element>(); // prevId to nextElement - remember "next" ornament to be processed, if "prev"-Id have not been processed yet - so, if "prev"/"next" is not well sorted in the MEI
+    private ArrayList<String> prevOrnams                        = new ArrayList<String>(); // already expanded ornams with that are "previous" to another ornam
+    private Map<String, Element> nextOrnams                     = new HashMap<String, Element>(); // prevId to nextElement - remember "next" ornament to be processed, if "prev"-Id have not been processed yet - so, if "prev"/"next" is not well sorted in the MEI
 
-    private Map<String, Map<String, String>> currentAccids = new HashMap<>(); // all accids in the current measure, "oct"->"pname"->"accid"
-    private Map<String, String> currentKey = new HashMap<>(); // accids of the current key, "pname"->"accid"
-    private RichElement currentMeasure = null;
+    private Map<String, Map<String, String>> currentAccids      = new HashMap<>(); // all accids in the current measure, "oct"->"pname"->"accid"
+    private Map<String, String> currentKey                      = new HashMap<>(); // accids of the current key, "pname"->"accid"
+    private RichElement currentMeasure                          = null;
+    private ArrayList<RichElement> currentSlurs                 = new ArrayList<>();   // cached slurs in the current measure
+    private ArrayList<RichElement> currentGraces                = new ArrayList<>();   // cached graces in the current measure, to be added at the end of the measure
+    private Map<String, RichElement> currentNotes               = new HashMap<>();   // cached notes in the current measure, to be used for grace note expansion
 
-    private ArrayList<Pair<RichElement, OrnamentExpansion>> endingGraces = new ArrayList<>();
     /**
      * constructor
      * @param mei the MEI to be expanded
@@ -65,8 +68,10 @@ public class MeiOrnamentExpander {
             return null;
         }
 
-        long startTime = System.currentTimeMillis();                            // we measure the time that the conversion consumes
+        UUID.randomUUID(); // initalizes the random generator, so that it does not cause a delay during the expansion process
+
         System.out.println("\nInstructifying " + ((mei.getFile() != null) ? mei.getFile().getName() : "MEI data") + ".");
+        Stopwatch stopwatch = new Stopwatch();
 
         this.mei = mei;
 
@@ -81,7 +86,7 @@ public class MeiOrnamentExpander {
             this.expandOrnamentsElement(element);
         }
 
-        System.out.println("MEI expansion of Ornaments finished. Time consumed: " + (System.currentTimeMillis() - startTime) + " milliseconds");
+        stopwatch.markTotal("MEI expansion of Ornaments finished.");
 
         return mei;
     }
@@ -104,6 +109,32 @@ public class MeiOrnamentExpander {
                 case "ornam":
                     expandOrnamentsElement(e);
                     continue;
+                case "graceGrp":
+                    RichElement graceGrp = new RichElement(e, false);
+                    currentGraces.add(graceGrp);
+                    break;
+                case "note":
+                    RichElement note = new RichElement(e, false);
+                    if(note.has("grace"))
+                        currentGraces.add(note);
+                    else
+                        currentNotes.put(note.getId(), note);
+                    String accid = note.get("accid");
+                    if(accid == null || accid.isEmpty())
+                        break;
+                    if(!currentAccids.containsKey(note.get("oct")))
+                        currentAccids.put(note.get("oct"), new HashMap<>());
+                    currentAccids.get(note.get("oct")).put(note.get("pname"), accid);
+                    continue;
+                case "chord":
+                    RichElement chord = new RichElement(e, false);
+                    if(chord.has("grace"))
+                        currentGraces.add(chord);
+                    else
+                        currentNotes.put(chord.getId(), chord);
+                    break;
+                case "accid":
+                    break;
 
                 case "keySig":
                     currentKey = new HashMap<>();
@@ -113,39 +144,24 @@ public class MeiOrnamentExpander {
                     currentKey.put(keyAccid.get("pname"), keyAccid.get("accid"));
                     continue;
                 case "measure":
-                    for(Pair<RichElement, OrnamentExpansion> grace : endingGraces) {                // if we have ending graces, append them now before going to next measure
-                        appendOrnamentExpansion(grace.getKey(), grace.getValue(), true);
+                    for(RichElement grace : currentGraces) {                // if we have graces, expand them before we process the next measure (as we needed to collect slurs before)
+                        expandGrace(grace);
                     }
-                    endingGraces.clear();
-
-                    currentMeasure = new RichElement(e);
-                    currentAccids = new HashMap<>();
-                case "note":
-                    RichElement note = new RichElement(e);
-                    String accid = note.get("accid");
-                    if(accid == null || accid.isEmpty())
-                       break;
-                    if(!currentAccids.containsKey(note.get("oct")))
-                        currentAccids.put(note.get("oct"), new HashMap<>());
-                    currentAccids.get(note.get("oct")).put(note.get("pname"), accid);
-
-                    if(note.has("grace"))
-                        expandGrace(note);
+                    currentMeasure  = new RichElement(e, false);
+                    currentSlurs    = new ArrayList<>();
+                    currentGraces   = new ArrayList<>();
+                    currentNotes    = new HashMap<>();
+                    currentAccids   = new HashMap<>();
                     break;
-                case "chord":
-                    RichElement chord = new RichElement(e);
-                    if(chord.has("grace"))
-                        expandGrace(chord);
-                    break;
-                case "graceGrp":
-                    RichElement graceGrp = new RichElement(e);
-                    expandGrace(graceGrp);
-                    break;
-                case "accid":
-                    break;
+                case "slur":
+                    RichElement slur = new RichElement(e, false);
+                    currentSlurs.add(slur);
+                    continue;
             }
+
             this.expandOrnaments(e);
         }
+
     }
 
     /**
@@ -176,11 +192,11 @@ public class MeiOrnamentExpander {
         if(this.currentMeasure == null)
             return null;
 
-        ArrayList<RichElement> slurs = this.currentMeasure.getChildrenOfType("slur");
-        ArrayList<RichElement> notes = collectAllNotes(element);
+        ArrayList<RichElement> slurs = this.currentSlurs;
+        Map<String, RichElement> notes = this.currentNotes;
 
         for(RichElement slur : slurs) {
-            RichElement note = getElementWithId(notes, slur.get("startid"));
+            RichElement note = notes.get(slur.get("startid"));
             if (note != null) {
                 String endid = slur.get("endid");
                 Element principalNoteElement = Helper.findSibling(element.getElement(), endid);
@@ -190,7 +206,7 @@ public class MeiOrnamentExpander {
                     return principalNote;
                 }
             }
-            note = getElementWithId(notes, slur.get("endid"));
+            note = notes.get(slur.get("endid"));
             if (note != null) {
                 String startid = slur.get("startid");
                 Element principalNoteElement = Helper.findSibling(element.getElement(), startid);
@@ -222,7 +238,7 @@ public class MeiOrnamentExpander {
         }
 
         // if both != null
-        String graceType = element.get("grace");
+        String graceType = element.getAttributeValue("grace");
         if(graceType == null)
             graceType = "";
 
@@ -234,8 +250,9 @@ public class MeiOrnamentExpander {
             principalNote = new RichElement(previousElement);
             graceIsBefore.set(false);
         }
-        principalNote = new RichElement(nextElement);
+        principalNote = new RichElement(nextElement, false);
         graceIsBefore.set(true);
+
         return principalNote;
     }
 
@@ -246,11 +263,9 @@ public class MeiOrnamentExpander {
      * @param element
      */
     private void expandGrace(RichElement element) {
-        ArrayList<RichElement> notes = collectAllNotes(element);
-
+        Map<String, RichElement> notes = this.currentNotes;
         AtomicBoolean graceIsBefore = new AtomicBoolean(true);
         RichElement principalNote = getCorrespondingNoteOfGrace(element, graceIsBefore);
-
         if(principalNote == null)
             return;
 
@@ -262,7 +277,6 @@ public class MeiOrnamentExpander {
             ornamentName = ornamentName + " delayed";
         }
 
-
         OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
         ornamentExpansion.addCorrespondence(principalNote); // sets the corresponds of the OrnamentExpansion to the ornament, as the ornament has a correspondence to the principalNote via "startid"
         ornamentExpansion.setLabel(ornamentName);
@@ -271,7 +285,7 @@ public class MeiOrnamentExpander {
 
         if(!graceIsBefore.get() && principalIsNote) {
             RichElement graceNote = new RichElement("note");
-            graceNote.set("oct", String.valueOf(principalNote.get("oct")));
+            graceNote.set("oct", principalNote.get("oct"));
             graceNote.set("pname", principalNote.get("pname"));
             ornamentExpansion.addElement(graceNote);
         }
@@ -280,7 +294,7 @@ public class MeiOrnamentExpander {
         if(!principalIsNote) {
            halfStepsTo = notes.get(notes.size() - 1);
         }
-        for (RichElement n : notes) {
+        for (RichElement n : notes.values()) {
             RichElement note = new RichElement(n.getElement(), true);
 
             if(halfStepsTo != null) {
@@ -292,39 +306,15 @@ public class MeiOrnamentExpander {
 
         if(graceIsBefore.get()) {
             RichElement graceNote = new RichElement("note");
-            graceNote.set("oct", String.valueOf(principalNote.get("oct")));
+            graceNote.set("oct", principalNote.get("oct"));
             graceNote.set("pname", principalNote.get("pname"));
             ornamentExpansion.addElement(graceNote);
         }
 
         if(graceIsBefore.get())
-            appendOrnamentExpansion(principalNote, ornamentExpansion, !graceIsBefore.get());
+            appendOrnamentExpansion(principalNote, ornamentExpansion, false);
         else
-            endingGraces.add(new Pair(principalNote, ornamentExpansion));
-    }
-
-    /**
-     * Recursively collects all note and chord elements from the given RichElement.
-     * Traverses the entire element tree regardless of nesting depth.
-     * @param element the element to collect notes from
-     * @return a list of all RichElement notes and chords found
-     */
-    private ArrayList<RichElement> collectAllNotes(RichElement element) {
-        ArrayList<RichElement> notes = new ArrayList<RichElement>();
-        String elementName = element.getName();
-
-        // If this element is a note or chord, add it to the list
-        if (elementName.equals("note") || elementName.equals("chord")) {
-            notes.add(element);
-        }
-
-        // Recursively traverse all children
-        ArrayList<RichElement> children = element.getChildren();
-        for (RichElement child : children) {
-            notes.addAll(collectAllNotes(child));
-        }
-
-        return notes;
+            appendOrnamentExpansion(principalNote, ornamentExpansion, true);
     }
 
     /**
@@ -456,7 +446,7 @@ public class MeiOrnamentExpander {
 
             RichElement note = new RichElement("note");
             note.set("dur", String.valueOf(noteDuration));
-            note.set("oct", String.valueOf(principalNote.get("oct")));
+            note.set("oct", principalNote.get("oct"));
             note.set("pname", principalNote.get("pname"));
 
             int alteration = Integer.parseInt(alterationEntry);

@@ -86,8 +86,8 @@ public class MsmElement extends RichElement {
      * returns the octave
      * @return
      */
-    public Integer getOctave() {
-        return getAsInteger("octave");
+    public Double getOctave() {
+        return getAsDouble("octave");
     }
 
     /**
