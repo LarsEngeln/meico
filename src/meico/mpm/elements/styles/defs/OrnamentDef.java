@@ -203,23 +203,23 @@ public class OrnamentDef extends AbstractDef {
             case "arpeg":
             case "arpeggio":
                 def.setDynamicsGradient(-1.0, 1.0);
-                def.setTemporalSpread(-22.0, 44.0, TemporalValue.Domain.TICKS, 1.0, TemporalSpread.NoteOffShift.False);
+                def.setTemporalSpread(-22.0, 44.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.False);
                 break;
             case "upper mordent":
             case "lower mordent":
                 def.setDynamicsGradient(1.0, -1.0);
-                def.setTemporalSpread(0, 180.0, TemporalValue.Domain.TICKS, 0.9, TemporalSpread.NoteOffShift.Monophonic);
+                def.setTemporalSpread(0, 180.0, TemporalValue.Domain.Ticks, 0.9, TemporalSpread.NoteOffShift.Monophonic);
                 break;
             case "grace unacc":
                 def.setDynamicsGradient(1.0, -1.0);
-                def.setTemporalSpread(-90.0, 90.0, TemporalValue.Domain.TICKS, 1.0, TemporalSpread.NoteOffShift.Monophonic);
+                def.setTemporalSpread(-90.0, 90.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic);
             case "grace acc":
                 def.setDynamicsGradient(1.0, -1.0);
-                def.setTemporalSpread(0, 90.0, TemporalValue.Domain.TICKS, 1.0, TemporalSpread.NoteOffShift.Monophonic);
+                def.setTemporalSpread(0, 90.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic);
                 break;
             default:
                 def.setDynamicsGradient(-1.0, 1.0);
-                def.setTemporalSpread(0, 500, TemporalValue.Domain.TICKS, 0.9, TemporalSpread.NoteOffShift.Monophonic);
+                def.setTemporalSpread(0, 500, TemporalValue.Domain.Ticks, 0.9, TemporalSpread.NoteOffShift.Monophonic);
         }
 
         return def;
@@ -230,8 +230,8 @@ public class OrnamentDef extends AbstractDef {
      * @author Axel Berndt
      */
     public static class TemporalSpread {
-        public TemporalValue frameStart = TemporalValue.create(0.0, TemporalValue.Domain.TICKS);
-        private TemporalValue frameLength = TemporalValue.create(0.0, TemporalValue.Domain.TICKS);    // must be >= 0.0
+        public TemporalValue frameStart = TemporalValue.create(0.0, TemporalValue.Domain.Ticks);
+        private TemporalValue frameLength = TemporalValue.create(0.0, TemporalValue.Domain.Ticks);    // must be >= 0.0
         public double intensity = 1.0;
         public NoteOffShift noteOffShift = NoteOffShift.False;
         private String id = null;
@@ -257,14 +257,14 @@ public class OrnamentDef extends AbstractDef {
 
             Attribute domain = Helper.getAttribute("time.unit", xml);
             if (domain == null) {
-                frameStart.setDomain(TemporalValue.Domain.TICKS);
-                frameLength.setDomain(TemporalValue.Domain.TICKS);
+                frameStart.setDomain(TemporalValue.Domain.Ticks);
+                frameLength.setDomain(TemporalValue.Domain.Ticks);
             }
             else {
                 switch (domain.getValue()) {
                     case "milliseconds":
-                        frameStart.setDomain(TemporalValue.Domain.MILLISECONDS);
-                        frameLength.setDomain(TemporalValue.Domain.MILLISECONDS);
+                        frameStart.setDomain(TemporalValue.Domain.Milliseconds);
+                        frameLength.setDomain(TemporalValue.Domain.Milliseconds);
                         break;
                     // TODO: TemporalValue.Domain.RelativeToNoteDuration?
                     case "ticks":
@@ -359,15 +359,15 @@ public class OrnamentDef extends AbstractDef {
         private ArrayList<Element> setOrnamentDateAtts(double dateOffset, ArrayList<Element> chord, ArrayList<Element> previous) {
             String dateAttName, durAttName;
             switch (this.frameStart.getDomain()) {
-                case TICKS:
+                case Ticks:
                     dateAttName = "ornament.date.offset";
                     durAttName = "ornament.duration";
                     break;
-                case MILLISECONDS:
+                case Milliseconds:
                     dateAttName = "ornament.milliseconds.date.offset";
                     durAttName = "ornament.milliseconds.duration";
                     break;
-                case RELATIVE:
+                case Relative:
                     dateAttName = "ornament.relative.date.offset";
                     durAttName = "ornament.relative.duration";
                     break;
@@ -442,13 +442,13 @@ public class OrnamentDef extends AbstractDef {
                 ts.addAttribute(new Attribute("frameLength", Double.toString(this.frameLength.getValue())));
 
             switch (this.frameStart.getDomain()) {
-                case TICKS:
+                case Ticks:
                     // not necessary because this is the default value when absent
                     break;
-                case MILLISECONDS:
+                case Milliseconds:
                     ts.addAttribute(new Attribute("time.unit", "milliseconds"));
                     break;
-                case RELATIVE:
+                case Relative:
                     ts.addAttribute(new Attribute("time.unit", "relative"));
                     break;
 //            case RelativeToNoteDuration:

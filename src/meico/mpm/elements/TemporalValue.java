@@ -14,35 +14,35 @@ public class TemporalValue {
      * Enumeration of supported domains
      */
     public enum Domain {
-        UNKNOWN,
-        RELATIVE,
-        MILLISECONDS,
-        TICKS,
-        NOTELENGTH // 8th, 16th, ..
+        Unknown,
+        Relative,
+        Milliseconds,
+        Ticks,
+        Notelength // 8th, 16th, ..
     }
     private static final Map<Domain, String> domainStrings;
     static {
         Map<Domain, String> map = new HashMap<>();
-        map.put(Domain.MILLISECONDS, "ms");
-        map.put(Domain.NOTELENGTH, "th");
-        map.put(Domain.RELATIVE, "%");
-        map.put(Domain.TICKS, "ticks");
-        map.put(Domain.UNKNOWN, "?");
+        map.put(Domain.Milliseconds, "ms");
+        map.put(Domain.Notelength, "th");
+        map.put(Domain.Relative, "%");
+        map.put(Domain.Ticks, "ticks");
+        map.put(Domain.Unknown, "?");
         domainStrings = Collections.unmodifiableMap(map);
     }
     private static final Map<Domain, String> domainNameStrings;
     static {
         Map<Domain, String> map = new HashMap<>();
-        map.put(Domain.MILLISECONDS, "milliseconds");
-        map.put(Domain.NOTELENGTH, "note length");
-        map.put(Domain.RELATIVE, "relative");
-        map.put(Domain.TICKS, "ticks");
-        map.put(Domain.UNKNOWN, "unknown");
+        map.put(Domain.Milliseconds, "milliseconds");
+        map.put(Domain.Notelength, "note length");
+        map.put(Domain.Relative, "relative");
+        map.put(Domain.Ticks, "ticks");
+        map.put(Domain.Unknown, "unknown");
         domainNameStrings = Collections.unmodifiableMap(map);
     }
 
     private double value = 0.0;
-    private Domain domain = Domain.UNKNOWN;
+    private Domain domain = Domain.Unknown;
 
     private TemporalValue relationTo = null;
 
@@ -67,7 +67,7 @@ public class TemporalValue {
     }
 
     public static TemporalValue createInRelationTo(TemporalValue relativeTo) {
-        TemporalValue temporal = new TemporalValue(relativeTo.value, Domain.RELATIVE);
+        TemporalValue temporal = new TemporalValue(relativeTo.value, Domain.Relative);
         temporal.setRelation(relativeTo);
         return temporal;
     }
@@ -185,7 +185,7 @@ public class TemporalValue {
      * @return
      */
     public TemporalValue getRelativeTo(double value) {
-        TemporalValue relative = create(value, Domain.RELATIVE);
+        TemporalValue relative = create(value, Domain.Relative);
 
         if(getValue() == value) {
             relative.setValue(100);
@@ -431,7 +431,7 @@ public class TemporalValue {
      * @return
      */
     public boolean isRelative() {
-        return getDomain() == Domain.RELATIVE;
+        return getDomain() == Domain.Relative;
     }
 
     /**
@@ -439,7 +439,7 @@ public class TemporalValue {
      * @return
      */
     public boolean isMilliseconds() {
-        return getDomain() == Domain.MILLISECONDS;
+        return getDomain() == Domain.Milliseconds;
     }
 
     /**
@@ -447,7 +447,7 @@ public class TemporalValue {
      * @return
      */
     public boolean isTicks() {
-        return getDomain() == Domain.TICKS;
+        return getDomain() == Domain.Ticks;
     }
 
     /**
@@ -455,7 +455,7 @@ public class TemporalValue {
      * @return
      */
     public boolean isNoteLength() {
-        return getDomain() == Domain.NOTELENGTH;
+        return getDomain() == Domain.Notelength;
     }
 
     /**
@@ -463,7 +463,7 @@ public class TemporalValue {
      * @return
      */
     public boolean isUnknown() {
-        return getDomain() == Domain.UNKNOWN;
+        return getDomain() == Domain.Unknown;
     }
 
     /**
