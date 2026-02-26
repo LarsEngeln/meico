@@ -85,6 +85,9 @@ public class MeiOrnamentExpander {
         for(Element element : nextOrnams.values()){  // do not forget someone, should never happen if MEI is well-defined
             this.expandOrnamentsElement(element);
         }
+        for(RichElement grace : currentGraces) {     // do not forget someone, expand graces of last measure
+            expandGrace(grace);
+        }
 
         stopwatch.markTotal("MEI expansion of Ornaments finished.");
 
@@ -186,14 +189,14 @@ public class MeiOrnamentExpander {
      * @param graceIsBefore
      * @return true if grace is before corresponding, false if is after
      */
-    private RichElement getCorrespondingNoteOfGrace(RichElement element, AtomicBoolean graceIsBefore) {
+    private RichElement getCorrespondingNoteOfGrace(RichElement element, Map<String, RichElement> graceNotes, AtomicBoolean graceIsBefore) {
         RichElement principalNote = null;
 
         if(this.currentMeasure == null)
             return null;
 
         ArrayList<RichElement> slurs = this.currentSlurs;
-        Map<String, RichElement> notes = this.currentNotes;
+        Map<String, RichElement> notes = graceNotes;
 
         for(RichElement slur : slurs) {
             RichElement note = notes.get(slur.get("startid"));
@@ -263,9 +266,9 @@ public class MeiOrnamentExpander {
      * @param element
      */
     private void expandGrace(RichElement element) {
-        Map<String, RichElement> notes = this.currentNotes;
+        Map<String, RichElement> notes = this.collectAllNotes(element);
         AtomicBoolean graceIsBefore = new AtomicBoolean(true);
-        RichElement principalNote = getCorrespondingNoteOfGrace(element, graceIsBefore);
+        RichElement principalNote = getCorrespondingNoteOfGrace(element, notes, graceIsBefore);
         if(principalNote == null)
             return;
 
@@ -315,6 +318,30 @@ public class MeiOrnamentExpander {
             appendOrnamentExpansion(principalNote, ornamentExpansion, false);
         else
             appendOrnamentExpansion(principalNote, ornamentExpansion, true);
+    }
+
+    /**
+     * Recursively collects all note and chord elements from the given RichElement.
+     * Traverses the entire element tree regardless of nesting depth.
+     * @param element the element to collect notes from
+     * @return a list of all RichElement notes and chords found
+     */
+    private Map<String, RichElement> collectAllNotes(RichElement element) {
+        Map<String, RichElement> notes = new HashMap<String, RichElement>();
+        String elementName = element.getName();
+
+        // If this element is a note or chord, add it to the list
+        if (elementName.equals("note") || elementName.equals("chord")) {
+            notes.put(element.getId(), element);
+        }
+
+        // Recursively traverse all children
+       ArrayList<RichElement> children = element.getChildren();
+        for (RichElement child : children) {
+            notes.putAll(collectAllNotes(child));
+        }
+
+        return notes;
     }
 
     /**
@@ -570,10 +597,19 @@ public class MeiOrnamentExpander {
      */
     private void appendOrnamentExpansion(RichElement principalNote, OrnamentExpansion ornamentExpansion, boolean atEnd) {
         OrnamentExpansion existingOrnamentExpansion = ornamentExpansions.get(principalNote.getId());
-        if(existingOrnamentExpansion != null) {
-            existingOrnamentExpansion.append(ornamentExpansion, atEnd);
+        if(existingOrnamentExpansion == null) {
+            ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
+            Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement().getElement(), principalNote.getElement());
+            return;
         }
-        else { // create new one
+
+        if(atEnd) {
+            existingOrnamentExpansion.append(ornamentExpansion);
+        }
+        else {
+            ornamentExpansion.append(existingOrnamentExpansion);
+            existingOrnamentExpansion.getOrnamentExpansionElement().removeParent();
+
             ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
             Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement().getElement(), principalNote.getElement());
         }
