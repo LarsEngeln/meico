@@ -254,6 +254,18 @@ public class RichElement {
     }
 
     /**
+     * direct attribute access without .ges fallback or child search, returns null if not found
+     * @param attributeName
+     * @return
+     */
+    public String getAttributeValue(String attributeName) {
+        Attribute a = Helper.getAttribute(attributeName, this.element);
+        if (a == null)
+            return null;
+        return a.getValue();
+    }
+
+    /**
      * returns the Attribute's value from a child with same name like attributeName (Example: attributeName = "accid" -> find child <accid accid="n"/>)
      * @param attributeName
      * @return
