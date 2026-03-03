@@ -140,11 +140,12 @@ public class OrnamentDef extends AbstractDef {
      * @param noteOffShift
      */
     public void setTemporalSpread(double frameStart, double frameLength, TemporalValue.Domain frameDomain, double intensity, TemporalSpread.NoteOffShift noteOffShift) {
+       setTemporalSpread(TemporalValue.create(frameStart, frameDomain), TemporalValue.create(frameLength, frameDomain), intensity, noteOffShift);
+    }
+    public void setTemporalSpread(TemporalValue frameStart, TemporalValue frameLength, double intensity, TemporalSpread.NoteOffShift noteOffShift) {
         TemporalSpread temporalSpread = new TemporalSpread();
-        temporalSpread.frameStart.setValue(frameStart);
-        temporalSpread.frameStart.setDomain(frameDomain);
-        temporalSpread.frameLength.setDomain(frameDomain);
-        temporalSpread.setFrameLength(frameLength);
+        temporalSpread.frameStart = frameStart;
+        temporalSpread.frameLength = frameLength;
         temporalSpread.intensity = intensity;
         temporalSpread.noteOffShift = noteOffShift;
         this.setTemporalSpread(temporalSpread);
@@ -203,7 +204,7 @@ public class OrnamentDef extends AbstractDef {
             case "arpeg":
             case "arpeggio":
                 def.setDynamicsGradient(-1.0, 1.0);
-                def.setTemporalSpread(-22.0, 44.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.False);
+                def.setTemporalSpread(-22.0, 66.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.False);
                 break;
             case "upper mordent":
             case "lower mordent":
@@ -219,7 +220,7 @@ public class OrnamentDef extends AbstractDef {
                 break;
             default:
                 def.setDynamicsGradient(-1.0, 1.0);
-                def.setTemporalSpread(0, 500, TemporalValue.Domain.Ticks, 0.9, TemporalSpread.NoteOffShift.Monophonic);
+                def.setTemporalSpread(0, 80, TemporalValue.Domain.Relative, 0.9, TemporalSpread.NoteOffShift.Monophonic);
         }
 
         return def;
@@ -231,7 +232,7 @@ public class OrnamentDef extends AbstractDef {
      */
     public static class TemporalSpread {
         public TemporalValue frameStart = TemporalValue.create(0.0, TemporalValue.Domain.Ticks);
-        private TemporalValue frameLength = TemporalValue.create(0.0, TemporalValue.Domain.Ticks);    // must be >= 0.0
+        public TemporalValue frameLength = TemporalValue.create(0.0, TemporalValue.Domain.Ticks);    // must be >= 0.0
         public double intensity = 1.0;
         public NoteOffShift noteOffShift = NoteOffShift.False;
         private String id = null;
@@ -314,6 +315,9 @@ public class OrnamentDef extends AbstractDef {
             this.frameLength.setValue(Math.max(0.0, length));
         }
 
+        public void setFrameLengthDomain(TemporalValue.Domain domain) {
+            this.frameLength.setDomain(domain);
+        }
         /**
          * get the frame length
          * @return
@@ -321,6 +325,10 @@ public class OrnamentDef extends AbstractDef {
         public double getFrameLength() {
             return this.frameLength.getValue();
         }
+        public TemporalValue.Domain getFrameLengthDomain() {
+            return this.frameLength.getDomain();
+        }
+
 
         /**
          * apply the temporal spread to the chord/note sequence;
@@ -332,19 +340,38 @@ public class OrnamentDef extends AbstractDef {
             if (chordSequence.size() < 1)   // if there is no chord/note or just one
                 return;                     // we don't do anything
 
-            // process all chords/notes except for the final one
-            ArrayList<Element> previous = null;
-            if (chordSequence.size() > 1) {
-                for (int i = 0; i < chordSequence.size() - 1; ++i) {    // for each chord/note until the pre-last
-                    double dateOffset = (Math.pow(((double) i) / (chordSequence.size() - 1), this.intensity) * this.frameLength.getValue()) + this.frameStart.getValue();
-                    previous = this.setOrnamentDateAtts(dateOffset, chordSequence.get(i), previous);
+            double length = this.frameLength.getValue();
+            double start  = this.frameStart.getValue();
+
+            if(this.frameLength.isRelative() || this.frameStart.isRelative()) {
+                // if the frame length is relative, we have to compute the absolute frame length according to the duration of the chord/note sequence
+                double d = -1.0;
+                for (ArrayList<Element> chord : chordSequence) {
+                    for (Element note : chord) {
+                        Attribute durAtt = Helper.getAttribute("duration", note);
+                        if (durAtt != null) {
+                            d = Double.parseDouble(durAtt.getValue());
+                            break;
+                        }
+                    }
+                    if(d >= 0.0)
+                        break;
                 }
+                if(this.frameLength.isRelative())
+                    length = (length * 0.01) * d;
+                if(this.frameStart.isRelative())
+                    start = (start * 0.01) * d;
             }
 
-            // place the final chord at frameEnd
-            ArrayList<Element> finalchord = chordSequence.get(chordSequence.size() - 1);
-            this.setOrnamentDateAtts(this.frameStart.getValue() + this.frameLength.getValue(), finalchord, previous);
+            // process all chords/notes; spacing as if there were n+1 positions,
+            // so each note has equal space and the last note still has room to sound until frameEnd
+            ArrayList<Element> previous = null;
+            for (int i = 0; i < chordSequence.size(); ++i) {
+                double dateOffset = (Math.pow(((double) i) / chordSequence.size(), this.intensity) * length) + start;
+                previous = this.setOrnamentDateAtts(dateOffset, chordSequence.get(i), previous);
+            }
         }
+
 
         /**
          * helper method for method apply() to set the ornament attributes on each note:
@@ -360,16 +387,13 @@ public class OrnamentDef extends AbstractDef {
             String dateAttName, durAttName;
             switch (this.frameStart.getDomain()) {
                 case Ticks:
+                case Relative: // at this moment values are in ticks
                     dateAttName = "ornament.date.offset";
                     durAttName = "ornament.duration";
                     break;
                 case Milliseconds:
                     dateAttName = "ornament.milliseconds.date.offset";
                     durAttName = "ornament.milliseconds.duration";
-                    break;
-                case Relative:
-                    dateAttName = "ornament.relative.date.offset";
-                    durAttName = "ornament.relative.duration";
                     break;
                 default:    // unknown domain
                     return null;
