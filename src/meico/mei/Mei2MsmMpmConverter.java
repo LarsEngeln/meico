@@ -232,8 +232,8 @@ public class Mei2MsmMpmConverter {
                     continue;
 
                 case "bTrem":
-                    this.processChord(e);                                       // bTrems are treated as chords
-                    continue;                                                   // continue with the next sibling
+                    this.processTrem(e);                                       // bTrems are treated as chords
+                    continue;                                                     // process child notes
 
                 case "caesura":                                                 // TODO: relevant for expressive performance
                     continue;
@@ -302,8 +302,8 @@ public class Mei2MsmMpmConverter {
                     continue;                                                   // TODO: relevant for expressive performance
 
                 case "fTrem":
-                    this.processChord(e);                                       // fTrems are treated as chords
-                    continue;                                                   // continue with the next sibling
+                    this.processTrem(e);                                        // fTrems are treated as chords
+                    continue;                                                      // process child notes
 
                 case "gap":
                     continue;                                                   // TODO: What to do with this?
@@ -2722,6 +2722,94 @@ public class Mei2MsmMpmConverter {
         }
     }
 
+    private void processTrem(Element trem) {
+        ArrayList<Object> timingData = this.computeControlEventTiming(trem, this.currentPart);
+        if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
+            return;
+        RichElement element = new RichElement(trem);
+
+        ArrayList<RichElement> notes = new ArrayList<>();
+        ArrayList<RichElement> chords = new ArrayList<>();
+
+
+        for(RichElement elem : element.getChildren()) {
+            if(elem.getName().equals("note")) {
+                notes.add(elem);
+                RichElement chord = new RichElement("chord");
+                chord.appendChild(new RichElement(elem.getElement(), true));
+                chords.add(chord);
+            }
+            else if(elem.getName().equals("chord")) {
+                ArrayList<RichElement> chordNotes = elem.getChildrenOfType("note");
+                if(chordNotes.isEmpty())
+                    continue;
+                notes.addAll(chordNotes);
+                RichElement chord = new RichElement("chord");
+                for (RichElement chordNote : chordNotes) {
+                    chord.appendChild(new RichElement(chordNote.getElement(), true));
+                }
+                chords.add(chord);
+            }
+        }
+
+        if(notes.isEmpty())
+            return;
+
+        RichElement allNotesChord = new RichElement("chord");
+        notes.forEach(allNotesChord::appendChild);
+        this.processChord(allNotesChord.getElement());
+
+        String unitdurAttr  = element.get("unitdur");
+        String numAttr      = element.get("num");
+        String stemModAttr  = element.get("stem.mod");
+
+        //if(unitdurAttr == null && numAttr == null && stemModAttr == null)                 // treat as chord if no unitdir nor num attribute is given
+         //   this.processChord(trem);
+
+        int repetitions = 0;
+        if (unitdurAttr != null) {
+            int unitdur = Integer.parseInt(unitdurAttr);
+            int dur = Integer.parseInt(notes.get(0).get("dur"));
+            repetitions = unitdur / dur;
+        }
+        else if (numAttr != null) {
+            repetitions = Integer.parseInt(numAttr);
+        }
+        else if (stemModAttr != null) {
+            int stemMod = Integer.parseInt(stemModAttr);
+            int dur = Integer.parseInt(notes.get(0).get("dur"));
+            repetitions = stemMod / dur;
+        }
+
+        // create ornament data
+        OrnamentData od = new OrnamentData();
+        od.xmlId = notes.get(0).getId();
+        od.date = (Double) timingData.get(0);
+        od.ornamentDefName = "tremolo";
+        od.scale = 0.0;
+        od.notes = new ArrayList<>();
+        od.noteOrder = new ArrayList<String>();
+        od.repetitions = repetitions;
+
+        od.noteOrder.add("|:");
+        for (RichElement chord : chords) {
+            od.noteOrder.add("[");
+            for(RichElement note : chord.getChildrenOfType("note")) {
+                MsmElement msmNote = MeiNote2MsmNote(new MeiElement(note.getElement()));
+                if (msmNote != null) {
+                    od.notes.add(msmNote.getElement());
+                }
+
+                od.noteOrder.add("#" + note.getId());
+            }
+            od.noteOrder.add("]");
+        }
+        od.noteOrder.add(":|");
+
+        addToOrnamentationMap(notes.get(0).getElement(), od);
+
+    }
+
     /**
      * check if the element is a supplied generated by meico which is a preprocessed ornament
      * @param xmlElement
@@ -2889,7 +2977,7 @@ public class Mei2MsmMpmConverter {
             att = el.getAttribute("staff");                                                                                 // find the staffs that this is associated to
 
         String elName = el.getLocalName();
-        if(att == null && (elName.equals("supplied") || elName.equals("graceGrp") || elName.equals("note") || elName.equals("chord"))) {    // search staff and get its "n"
+        if(att == null && (elName.equals("supplied") || elName.equals("graceGrp") || elName.equals("note") || elName.equals("chord") || elName.equals("fTrem") || elName.equals("bTrem"))) {    // search staff and get its "n"
             Element parent = el;
             do {
                 parent = Helper.getParentElement(parent);
