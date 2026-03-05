@@ -96,7 +96,7 @@ public class OrnamentationMap extends GenericMap {
      * @param id set this null or leave it empty to omit it from the xml code
      * @return the index at which the element has been added
      */
-    public int addOrnament(double date, String nameRef, double scale, ArrayList<String> noteOrder, ArrayList<Element> childNotes, String id) {
+    public int addOrnament(double date, String nameRef, double scale, ArrayList<String> noteOrder, ArrayList<Element> childNotes, int repetitions, String id) {
         Element ornament = new Element("ornament", Mpm.MPM_NAMESPACE);
         ornament.addAttribute(new Attribute("date", Double.toString(date)));
         ornament.addAttribute(new Attribute("name.ref", nameRef));
@@ -124,6 +124,8 @@ public class OrnamentationMap extends GenericMap {
             }
         }
 
+        ornament.addAttribute(new  Attribute("repetitions", String.valueOf(repetitions)));
+
         if ((id != null) && !id.isEmpty())
             ornament.addAttribute(new Attribute("xml:id", "http://www.w3.org/XML/1998/namespace", id));
 
@@ -138,7 +140,7 @@ public class OrnamentationMap extends GenericMap {
      * @return the index at which the element has been added
      */
     public int addOrnament(double date, String nameRef) {
-        return this.addOrnament(date, nameRef, 1.0, null, null, null);
+        return this.addOrnament(date, nameRef, 1.0, null, null, 0, null);
     }
 
     /**
@@ -153,7 +155,7 @@ public class OrnamentationMap extends GenericMap {
             System.err.println("Cannot add ornament: ornamentDef or ornamentDefName must be specified.");
             return -1;
         }
-        return this.addOrnament(data.date, data.ornamentDefName, data.scale, data.noteOrder, data.notes, data.xmlId);
+        return this.addOrnament(data.date, data.ornamentDefName, data.scale, data.noteOrder, data.notes, data.repetitions, data.xmlId);
     }
 
     /**
@@ -326,74 +328,118 @@ public class OrnamentationMap extends GenericMap {
             ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
             Map<Integer, Integer> repeats = new HashMap<>();
 
-            int noteIndex = 0;
-            int repeatStart = noteIndex;
+            int chordIndex = 0;
+            int repeatStart = chordIndex;
+            ArrayList<String> chords = new ArrayList<>();
+            StringBuilder chord = new StringBuilder("[");
+            boolean isCollectingChord = false;
+
             for(int j = 0; j < noteOrder.size();) {
                 String order = noteOrder.get(j);
-                if(order.contains("#")) {
-                    noteOrder.set(j, order.replaceAll("#", ""));
-                    noteIndex++;
+
+                if(!isCollectingChord) {
+                    chord = new StringBuilder("[");
+                }
+
+                if(order.equals("[")) {
+                    isCollectingChord = true;
                     j++;
                     continue;
                 }
 
-                switch(order) {
-                    case "|:":
-                        repeatStart = noteIndex;
-                        break;
-                    case ":|":
-                        repeats.put(repeatStart, noteIndex);
-                        break;
-                    case "|":
+                if(order.contains("#")) {
+                    String o = order.replaceAll("#", "");
+                    chord.append(" ").append(o);
+                    noteOrder.set(j, o);
+                    j++;
                 }
 
-                noteOrder.remove(j);
+                if(order.equals("]")) {
+                    isCollectingChord = false;
+                    j++;
+                }
+
+                if(order.contains("|")) {
+                    switch (order) {
+                        case "|:":
+                            repeatStart = chordIndex;
+                            break;
+                        case ":|":
+                            repeats.put(repeatStart, chordIndex);
+                            break;
+                        case "|":
+                            break;
+                    }
+
+                    noteOrder.remove(j);
+                    continue;
+                }
+
+                if(!isCollectingChord) {
+                    chord.append(" ]");
+                    chords.add(chord.toString());
+                    chordIndex++;
+                }
             }
 
-
-            Double rel = ornamNote.getDuration() / noteOrder.size();
-
-            int rptNoteLength = 135;
-            double maxNotes = Math.ceil(ornamNote.getDuration() / rptNoteLength);
-
-
-            if(!repeats.isEmpty() && maxNotes > noteOrder.size()) { // insert a repetition, as it is needed;
+            if(!repeats.isEmpty()) { // insert a repetition, if it is needed;
                 ArrayList<String> notesToAdd = new ArrayList<>();
                 int rptStart = repeats.keySet().iterator().next();
                 int rptEnd = repeats.get(rptStart);
                 int rptNotesAmount = rptEnd - rptStart;
 
-                while(maxNotes >= (notesToAdd.size() + noteOrder.size() + rptNotesAmount)) {
+                double maxNotes = chords.size();
+                String repetitions = ornament.get("repetitions");
+                if(repetitions != null && !repetitions.equals("0")) {
+                    maxNotes = Double.parseDouble(repetitions) * rptNotesAmount;
+                }
+                else {
+                    //Double rel = ornamNote.getDuration() / noteOrder.size();
+                    int rptNoteLength = 135;
+                    maxNotes = Math.ceil(ornamNote.getDuration() / rptNoteLength);
+                }
+
+                while(maxNotes >= (notesToAdd.size() + chords.size() + rptNotesAmount)) {
                     for (int k = rptStart; k < rptEnd; ++k) {
-                        notesToAdd.add(noteOrder.get(k));
+                        notesToAdd.add(chords.get(k));
                     }
                 }
                 for(RichElement child : children) {
-                    if(child.getId().equals(noteOrder.get(rptStart))) {
+                    if(child.getId().equals(chords.get(rptStart).replaceAll("\\[|\\]", "").trim())) {
                         MsmElement note = new MsmElement(child.getElement());
                         if(note.has("intm") && note.get("intm").equals("0.0hs"))
-                            notesToAdd.add(noteOrder.get(rptStart)); // always land on principal note of the repetition, might add doubles -> need to sanitize
+                            notesToAdd.add(chords.get(rptStart)); // always land on principal note of the repetition, might add doubles -> need to sanitize
                         break;
                     }
                 }
                 for(String n : notesToAdd) {
-                    noteOrder.add(rptEnd, n);
+                    chords.add(rptEnd, n);
                     rptEnd++;
                 }
-                ornament.set("note.order.perf", String.join(" ", noteOrder));
+
             }
+
+            String chordsString = String.join(" ", chords);
+
+            noteOrder = new ArrayList<String>(Arrays.asList(chordsString.split(" ")));
 
             MsmElement lastNote = null;
             for (int j = 0; j < noteOrder.size();) {
-                String noteId = noteOrder.get(j);
+                String order = noteOrder.get(j);
+
+                if(order.equals("[") || order.equals("]")) {
+                    j++;
+                    continue;
+                }
+
                 MsmElement note = null;
                 for(RichElement child : children) {
-                    if(child.getId().equals(noteId)) {
+                    if(child.getId().equals(order)) {
                         note = new MsmElement(child.getElement(), true);
                         break;
                     }
                 }
-                if(note != null && lastNote != null && note.isSameNote(lastNote)) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
+                if(!ornament.get("name.ref").equals("tremolo") && note != null && lastNote != null && note.isSameNote(lastNote)) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
                     note = null;
                 }
 
@@ -430,13 +476,15 @@ public class OrnamentationMap extends GenericMap {
         note.copyValue("duration", ornamNote);
         note.copyValue("layer", ornamNote);
         note.copyValue("date.perf", ornamNote);
+        note.copyValue("date.end.perf", ornamNote);
         note.copyValue("duration.perf", ornamNote);
+        note.copyValue("milliseconds.date", ornamNote);
+        note.copyValue("milliseconds.date.end", ornamNote);
         note.copyValue("velocity", ornamNote);
+        note.copyValue("detuneCents", ornamNote);
+        note.copyValue("detuneHz", ornamNote);
         note.copyValue("ornament.dynamics", ornamNote);
         note.copyValue("ornament.date.offset", ornamNote);
-        note.copyValue("milliseconds.date", ornamNote);
-        note.copyValue("date.end.perf", ornamNote);
-        note.copyValue("milliseconds.date.end", ornamNote);
     }
 
     /**
@@ -525,17 +573,36 @@ public class OrnamentationMap extends GenericMap {
                         noteOrderAscending = -1;
                         break;
                     default:                                    // attribute note.order is a list of reference IDs to be read into the notes list
-                        // TODO: parse brackets to create "sub-chords"
                         od.noteOrder = new ArrayList<>(Arrays.asList(no.replaceAll("#", "").split("\\s+")));
                         if (od.noteOrder.isEmpty())             // empty note list, hence no notes to ornament
                             continue;                           // continue with the next ornament
                         chordSequence = new ArrayList<>();
                         noteOrderAscending = 0;
+
+                        ArrayList<Element> chord = new ArrayList<>();
+                        boolean isCollectingChord = false;
                         for (String ref : od.noteOrder) {
+                            if(!isCollectingChord)
+                                chord = new ArrayList<>();
+
+                            if(ref.equals("[")) {
+                                isCollectingChord = true;
+                                continue;
+                            }
+                            if(ref.equals("]")) {
+                                isCollectingChord = false;
+                                if(!chord.isEmpty()) {
+                                    chordSequence.add(chord);
+                                }
+                                continue;
+                            }
+
                             Element note = notes.get(ref);
                             if (note != null) {
-                                ArrayList<Element> chord = new ArrayList<>();
                                 chord.add(note);
+                            }
+
+                            if(!isCollectingChord && !chord.isEmpty()) {
                                 chordSequence.add(chord);
                             }
                         }

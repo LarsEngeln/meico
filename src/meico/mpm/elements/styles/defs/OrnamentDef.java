@@ -218,6 +218,10 @@ public class OrnamentDef extends AbstractDef {
                 def.setDynamicsGradient(1.0, -1.0);
                 def.setTemporalSpread(0, 90.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic);
                 break;
+            case "tremolo":
+                def.setDynamicsGradient(1.0, 0.0);
+                def.setTemporalSpread(0, 100, TemporalValue.Domain.Relative, 1.0f, TemporalSpread.NoteOffShift.Monophonic);
+                break;
             default:
                 def.setDynamicsGradient(-1.0, 1.0);
                 def.setTemporalSpread(0, 80, TemporalValue.Domain.Relative, 0.9, TemporalSpread.NoteOffShift.Monophonic);

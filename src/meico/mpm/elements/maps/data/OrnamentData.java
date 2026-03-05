@@ -24,8 +24,8 @@ public class OrnamentData {
     public double date = 0.0;                       // the date for which the data is assembled
     public double scale = 0.0;
     public ArrayList<String> noteOrder = null;
-
     public ArrayList<Element> notes = null;
+    public int repetitions = 0;
 
     /**
      * default constructor
@@ -87,6 +87,7 @@ public class OrnamentData {
            clone.notes = new ArrayList<>();
            clone.notes.addAll(this.notes);
         }
+        clone.repetitions = this.repetitions;
         return clone;
     }
 

@@ -469,7 +469,7 @@ public class Helper {
     }
 
     /**
-     * returns the vale of attribute name in Element ofThis as String, or empty string if attribute does not exist, namespace is ignored
+     * returns the value of attribute name in Element ofThis as String, or empty string if attribute does not exist, namespace is ignored
      * @param name
      * @param ofThis
      * @return
