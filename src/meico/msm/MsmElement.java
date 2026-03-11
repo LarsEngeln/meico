@@ -101,4 +101,15 @@ public class MsmElement extends RichElement {
         if (!this.getOctave().equals(note.getOctave())) return false;
         return true;
     }
+
+    /**
+     * returns all children as MsmElements
+     * @return
+     */
+    public ArrayList<MsmElement> getChildrenAsMsmElements() {
+        LinkedList<Element> elements = Helper.getAllChildElements(this.element);
+        ArrayList<MsmElement> children = new ArrayList<>();
+        elements.forEach(elem -> children.add(new MsmElement(elem)));
+        return children;
+    }
 }

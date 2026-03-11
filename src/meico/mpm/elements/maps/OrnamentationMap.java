@@ -6,7 +6,6 @@ import meico.mpm.elements.maps.data.OrnamentData;
 import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.msm.MsmElement;
 import meico.supplementary.KeyValue;
-import meico.xml.RichElement;
 import nu.xom.Attribute;
 import nu.xom.Element;
 
@@ -324,7 +323,7 @@ public class OrnamentationMap extends GenericMap {
                 continue;
             toBeRemoved.add(ornamNote.getElement());
             ornament.copyValue("date", ornamNote);
-            ArrayList<RichElement> children = ornament.getChildren();
+            ArrayList<MsmElement> children = ornament.getChildrenAsMsmElements();
             ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
             Map<Integer, Integer> repeats = new HashMap<>();
 
@@ -404,7 +403,7 @@ public class OrnamentationMap extends GenericMap {
                         notesToAdd.add(chords.get(k));
                     }
                 }
-                for(RichElement child : children) {
+                for(MsmElement child : children) {
                     if(child.getId().equals(chords.get(rptStart).replaceAll("\\[|\\]", "").trim())) {
                         MsmElement note = new MsmElement(child.getElement());
                         if(note.has("intm") && note.get("intm").equals("0.0hs"))
@@ -433,7 +432,7 @@ public class OrnamentationMap extends GenericMap {
                 }
 
                 MsmElement note = null;
-                for(RichElement child : children) {
+                for(MsmElement child : children) {
                     if(child.getId().equals(order)) {
                         note = new MsmElement(child.getElement(), true);
                         break;
@@ -468,7 +467,7 @@ public class OrnamentationMap extends GenericMap {
      * @param note
      * @param ornamNote
      */
-    private static void copyNotePerfInformation(RichElement note, MsmElement ornamNote) {
+    private static void copyNotePerfInformation(MsmElement note, MsmElement ornamNote) {
         note.createNewId(); // we want a new ID as we might generated multiple notes from the seed note
         if(ornamNote == null)
             return;
