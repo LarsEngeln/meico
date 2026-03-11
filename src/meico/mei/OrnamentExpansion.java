@@ -1,6 +1,6 @@
 package meico.mei;
 
-import meico.xml.RichElement;
+import meico.mei.MeiElement;
 import nu.xom.Element;
 import nu.xom.ParentNode;
 
@@ -11,18 +11,18 @@ import java.util.ArrayList;
  * @author Lars Engeln
  */
 public class OrnamentExpansion {
-    private RichElement ornamentExpansionElement;
-    private RichElement groupElement;
-    private ArrayList<RichElement> notes;
+    private MeiElement ornamentExpansionElement;
+    private MeiElement groupElement;
+    private ArrayList<MeiElement> notes;
 
-    private ArrayList<RichElement> correspondences;
+    private ArrayList<MeiElement> correspondences;
 
     /**
      * default constructor
      */
     public OrnamentExpansion() {
-        ornamentExpansionElement    = new RichElement("supplied");
-        groupElement                = new RichElement("graceGrp");
+        ornamentExpansionElement    = new MeiElement("supplied");
+        groupElement                = new MeiElement("graceGrp");
         notes                       = new ArrayList<>();
         correspondences             = new ArrayList<>();
 
@@ -44,11 +44,11 @@ public class OrnamentExpansion {
      * adds a correspondence to the ornament expansion and updates the "corresp" attribute accordingly
      * @param note
      */
-    public void addCorrespondence(RichElement note) {
+    public void addCorrespondence(MeiElement note) {
         correspondences.add(note);
         String corresp = "";
         boolean isFirst = true;
-        for (RichElement c : correspondences) {
+        for (MeiElement c : correspondences) {
             String id = Helper.getAttribute("id", c.getElement()).getValue();
             if (!isFirst) corresp += ' ';
             else isFirst = false;
@@ -62,7 +62,7 @@ public class OrnamentExpansion {
      * adds a note to the ornament expansion and updates its "stem.visible" attribute
      * @param element
      */
-    public void addElement(RichElement element) {
+    public void addElement(MeiElement element) {
         if(element.getName().equals("note")) {
             element.set("stem.visible", "false");
             notes.add(element);
@@ -75,13 +75,13 @@ public class OrnamentExpansion {
      * @param index
      * @return
      */
-    public RichElement getNote(int index) { return notes.get(index); }
+    public MeiElement getNote(int index) { return notes.get(index); }
 
     /**
      * returns the list of notes
      * @return
      */
-    public ArrayList<RichElement> getNotes() { return notes; }
+    public ArrayList<MeiElement> getNotes() { return notes; }
 
     /**
      * removes the note at the given index
@@ -96,7 +96,7 @@ public class OrnamentExpansion {
      * returns the element representing the ornament expansion
      * @return
      */
-    public RichElement getOrnamentExpansionElement() {
+    public MeiElement getOrnamentExpansionElement() {
         return ornamentExpansionElement;
     }
 
@@ -104,17 +104,16 @@ public class OrnamentExpansion {
      * returns the element representing the group of notes
      * @return
      */
-    public RichElement getGroupElement() {
+    public MeiElement getGroupElement() {
         return groupElement;
     }
 
     /**
      * appends the given ornament expansion to this one, either at the end or at the beginning, and updates the label accordingly
      * @param ornamentExpansion
-     * @param atEnd
      */
     public void append(OrnamentExpansion ornamentExpansion) {
-        RichElement child = ornamentExpansion.getGroupElement();
+        MeiElement child = ornamentExpansion.getGroupElement();
         ParentNode parent = child.getElement().getParent();
         if (parent != null) {
             parent.removeChild(child.getElement());

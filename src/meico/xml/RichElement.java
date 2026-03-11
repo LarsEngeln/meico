@@ -115,20 +115,16 @@ public class RichElement {
      * @param attributeName
      * @return
      */
-    public boolean has(String attributeName) { return Helper.getAttribute(attributeName, this.element) != null; }
+    public boolean has(String attributeName) {
+        return Helper.getAttribute(attributeName, this.element) != null;
+    }
 
     /**
-     * returns the value of attributeName if the element has it. Hereby ".ges" (e.g. "accid.ges") is preferred.
-     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be search.
+     * returns the value of attributeName if the element has it.
      * @param attributeName
-     * @return value of attributeName (preferring ".ges") or null if this attribute is not set.
+     * @return value of attributeName or null if this attribute is not set.
      */
     public String get(String attributeName) {
-        if(!has(attributeName) && !has(attributeName + ".ges"))
-            return getFromChild(attributeName, Arrays.asList("damage","del","sic"));
-
-        if(has(attributeName + ".ges"))
-            return Helper.getAttributeValue(attributeName + ".ges", this.element);
         return Helper.getAttributeValue(attributeName, this.element);
     }
     /**
@@ -231,7 +227,7 @@ public class RichElement {
     }
 
     /**
-     * returns all children as MeiElements
+     * returns all children as RichElements
      * @return
      */
     public ArrayList<RichElement> getChildren() {
@@ -242,7 +238,7 @@ public class RichElement {
     }
 
     /**
-     * returns all children with the given name as MeiElements
+     * returns all children with the given name as RichElements
      * @param name
      * @return
      */
