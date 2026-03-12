@@ -125,7 +125,10 @@ public class RichElement {
      * @return value of attributeName or null if this attribute is not set.
      */
     public String get(String attributeName) {
-        return Helper.getAttributeValue(attributeName, this.element);
+        String val = Helper.getAttributeValue(attributeName, this.element);
+        if(val != null && !val.isEmpty())
+            return val;
+        return null;
     }
     /**
      * returns the value of attributeName as Double if the element has it. Hereby ".ges" (e.g. "accid.ges") is preferred.
