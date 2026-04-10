@@ -218,9 +218,14 @@ public class MeiOrnamentExpander {
             }
         }
 
-        // No slur found: search the surrounding
+        // No slur found: walk siblings until a note or chord is found (or null)
         Element previousElement = Helper.getPreviousSiblingElement(element.getElement());
+        while (previousElement != null && !previousElement.getLocalName().equals("note") && !previousElement.getLocalName().equals("chord"))
+            previousElement = Helper.getPreviousSiblingElement(previousElement);
+
         Element nextElement = Helper.getNextSiblingElement(element.getElement());
+        while (nextElement != null && !nextElement.getLocalName().equals("note") && !nextElement.getLocalName().equals("chord"))
+            nextElement = Helper.getNextSiblingElement(nextElement);
 
         if (nextElement == null && previousElement == null) {
             graceIsBefore.set(true);
@@ -399,7 +404,7 @@ public class MeiOrnamentExpander {
 
         Element principalNoteElement = Helper.findSibling(ornament.getElement(), startid);
         if (principalNoteElement == null)
-            return;     // if the corresponding note is not available
+            return;     // if the corresponding note is not availabletart
         MeiElement principalNote = new MeiElement(principalNoteElement);
 
         if(ornament.get("staff") == null && ornament.get("part") == null) {
@@ -432,7 +437,12 @@ public class MeiOrnamentExpander {
         OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
         ornamentExpansion.addCorrespondence(principalNote); // sets the corresponds of the OrnamentExpansion to the ornament, as the ornament has a correspondence to the principalNote via "startid"
 
-        ornamentExpansion.setLabel(ornamentName);
+        String delayed = ornament.get("delayed");
+        if(delayed == null || delayed.equals("false"))
+            delayed = "";
+        else
+            delayed = " delayed";
+        ornamentExpansion.setLabel(ornamentName + delayed);
 
         List<String> alterations = ornamentLookup.get(ornamentName);
 
