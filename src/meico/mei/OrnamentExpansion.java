@@ -16,6 +16,7 @@ public class OrnamentExpansion {
     private ArrayList<MeiElement> notes;
 
     private ArrayList<MeiElement> correspondences;
+    private ArrayList<String> segmentLabels = new ArrayList<>();   // labels of individual ornament segments
 
     /**
      * default constructor
@@ -39,6 +40,8 @@ public class OrnamentExpansion {
     public void setLabel(String label) {
         ornamentExpansionElement.set("label", label);
         groupElement.set("label", label);
+        if (segmentLabels.isEmpty())
+            segmentLabels.add(label);
     }
     /**
      * adds a correspondence to the ornament expansion and updates the "corresp" attribute accordingly
@@ -120,5 +123,14 @@ public class OrnamentExpansion {
         }
         this.ornamentExpansionElement.appendChild(child);
         ornamentExpansionElement.set("label", ornamentExpansionElement.get("label") + ", " + child.get("label"));
+        segmentLabels.addAll(ornamentExpansion.getSegmentLabels());
+    }
+
+    /**
+     * returns the list of individual segment labels (one per ornament that was merged into this expansion)
+     * @return
+     */
+    public ArrayList<String> getSegmentLabels() {
+        return segmentLabels;
     }
 }
