@@ -216,12 +216,15 @@ public class Helper {
             return null;                                                    // there can be no siblings, hence return null
 
         int index = ofThis.getParent().indexOf(ofThis);
-        if (index >= (ofThis.getParent().getChildCount() - 1))
-            return null;
-
-        if( ofThis.getParent().getChild(index + 1) instanceof Text)
-            return (Element) ofThis.getParent().getChild(index + 2);
-        return (Element) ofThis.getParent().getChild(index + 1);
+        int childCount = ofThis.getParent().getChildCount();
+        int next = index + 1;
+        while (next < childCount) {                                         // skip Text and Comment nodes
+            Node candidate = ofThis.getParent().getChild(next);
+            if (candidate instanceof Element)
+                return (Element) candidate;
+            next++;
+        }
+        return null;
     }
 
     /**
@@ -265,12 +268,14 @@ public class Helper {
             return null;                                                    // there can be no siblings, hence return null
 
         int index = ofThis.getParent().indexOf(ofThis);
-        if (index == 0)
-            return null;
-
-        if(ofThis.getParent().getChild(index - 1) instanceof Text)
-            return (Element) ofThis.getParent().getChild(index - 2);
-        return (Element) ofThis.getParent().getChild(index - 1);
+        int prev = index - 1;
+        while (prev >= 0) {                                                 // skip Text and Comment nodes
+            Node candidate = ofThis.getParent().getChild(prev);
+            if (candidate instanceof Element)
+                return (Element) candidate;
+            prev--;
+        }
+        return null;
     }
 
     /**
