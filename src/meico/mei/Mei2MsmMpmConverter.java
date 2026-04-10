@@ -2926,6 +2926,7 @@ public class Mei2MsmMpmConverter {
 
         String elementId = element.getId();
         boolean isInstruction = false;
+        ArrayList<String> segmentLabels = new ArrayList<>();
 
         if(element.getName().equals("supplied")) {
             ornamentName = element.get("label");
@@ -2937,6 +2938,13 @@ public class Mei2MsmMpmConverter {
             timingData.set(0, Double.parseDouble(principal.getAttributeValue("date")));
 
             isInstruction = true;
+
+            // collect segment labels from graceGrp children
+            for (MeiElement child : children) {
+                String label = child.get("label");
+                if (label != null && !label.isEmpty())
+                    segmentLabels.add(label);
+            }
         }
         else if(element.getName().equals("graceGrp") || element.getName().equals("note") || element.getName().equals("chord")) {
             MeiElement graceGrp = new MeiElement("graceGrp");
@@ -2960,37 +2968,71 @@ public class Mei2MsmMpmConverter {
             }
         }
 
-        // create ornament data
-        OrnamentData od = new OrnamentData();
-        od.xmlId = elementId;
-        od.date = (Double) timingData.get(0);
-        od.ornamentDefName = ornamentName;
-        od.scale = 0.0;
-        od.notes = new ArrayList<>();
-        od.noteOrder = new ArrayList<String>();
+        // if we have multiple segments (from a combined ornament expansion), create separate OrnamentData per segment
+        if (isInstruction && segmentLabels.size() > 1 && graceGrps.size() == segmentLabels.size()) {
+            // groupId removed – ornaments at the same date are now grouped implicitly by date in OrnamentationMap
 
-        for (MeiElement graceGrp : graceGrps) {
-            for(MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
+            for (int s = 0; s < graceGrps.size(); s++) {
+                MeiElement graceGrp = graceGrps.get(s);
+                String segLabel = segmentLabels.get(s);
 
-                if(elem.getName().equals("barLine")) {
-                    od.noteOrder.add(getRptString(elem));
-                    continue;
+                OrnamentData od = new OrnamentData();
+                od.xmlId = elementId;
+                od.date = (Double) timingData.get(0);
+                od.ornamentDefName = segLabel;
+                od.scale = 0.0;
+                od.notes = new ArrayList<>();
+                od.noteOrder = new ArrayList<>();
+
+                for (MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
+                    if (elem.getName().equals("barLine")) {
+                        od.noteOrder.add(getRptString(elem));
+                        continue;
+                    }
+
+                    MsmElement msmNote = MeiNote2MsmNote(new MeiElement(elem.getElement()));
+                    if (msmNote != null)
+                        od.notes.add(msmNote.getElement());
+
+                    od.noteOrder.add("#" + elem.getId());
                 }
 
-                MsmElement msmNote = MeiNote2MsmNote(new MeiElement(elem.getElement()));
-                if(msmNote != null) {
-                    od.notes.add(msmNote.getElement());
-                }
-
-                od.noteOrder.add("#" + elem.getId());
+                addToOrnamentationMap(xmlElement, od);
             }
-            od.noteOrder.add("|");
         }
-        if(!graceGrps.isEmpty()) {
-            od.noteOrder.remove(od.noteOrder.size() - 1);
-        }
+        else {
+            // single ornament or non-instruction: create one OrnamentData as before
+            OrnamentData od = new OrnamentData();
+            od.xmlId = elementId;
+            od.date = (Double) timingData.get(0);
+            od.ornamentDefName = ornamentName;
+            od.scale = 0.0;
+            od.notes = new ArrayList<>();
+            od.noteOrder = new ArrayList<String>();
 
-        addToOrnamentationMap(xmlElement, od);
+            for (MeiElement graceGrp : graceGrps) {
+                for(MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
+
+                    if(elem.getName().equals("barLine")) {
+                        od.noteOrder.add(getRptString(elem));
+                        continue;
+                    }
+
+                    MsmElement msmNote = MeiNote2MsmNote(new MeiElement(elem.getElement()));
+                    if(msmNote != null) {
+                        od.notes.add(msmNote.getElement());
+                    }
+
+                    od.noteOrder.add("#" + elem.getId());
+                }
+                od.noteOrder.add("|");
+            }
+            if(!graceGrps.isEmpty()) {
+                od.noteOrder.remove(od.noteOrder.size() - 1);
+            }
+
+            addToOrnamentationMap(xmlElement, od);
+        }
     }
 
     /**

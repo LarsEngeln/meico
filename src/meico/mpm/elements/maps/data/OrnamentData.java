@@ -101,6 +101,19 @@ public class OrnamentData {
      * @return sequence of chords/notes to be added to the chordSequence's underlying map or null
      */
     public ArrayList<ArrayList<Element>> apply(ArrayList<ArrayList<Element>> chordSequence) {
+        return apply(chordSequence, null, null);
+    }
+
+    /**
+     * Apply the ornament with optional effective frameStart/frameLength overrides.
+     * These overrides are used when multiple ornaments share the same principal note
+     * and their frameLengths need proportional distribution.
+     * @param chordSequence the sequence of the chords/notes in which the ornament is applied
+     * @param effectiveFrameStart if non-null, overrides the ornamentDef's frameStart (in ticks)
+     * @param effectiveFrameLength if non-null, overrides the ornamentDef's frameLength (in ticks)
+     * @return sequence of chords/notes to be added to the chordSequence's underlying map or null
+     */
+    public ArrayList<ArrayList<Element>> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength) {
         ArrayList<ArrayList<Element>> chordsToAdd = new ArrayList<>();                      // if new notes are added to the underlying map, these will be collected in this list and returned at the end
 
         if (this.ornamentDef == null)
@@ -116,7 +129,7 @@ public class OrnamentData {
             this.ornamentDef.getDynamicsGradient().apply(tempChordSequence, this.scale);
 
         if (this.ornamentDef.getTemporalSpread() != null)
-            this.ornamentDef.getTemporalSpread().apply(tempChordSequence);
+            this.ornamentDef.getTemporalSpread().apply(tempChordSequence, effectiveFrameStart, effectiveFrameLength);
 
         return chordsToAdd;
     }

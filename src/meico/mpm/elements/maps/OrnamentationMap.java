@@ -4,6 +4,7 @@ import meico.mei.Helper;
 import meico.mpm.Mpm;
 import meico.mpm.elements.maps.data.OrnamentData;
 import meico.mpm.elements.styles.OrnamentationStyle;
+import meico.mpm.elements.styles.defs.OrnamentDef;
 import meico.msm.MsmElement;
 import meico.supplementary.KeyValue;
 import nu.xom.Attribute;
@@ -111,7 +112,6 @@ public class OrnamentationMap extends GenericMap {
                     break;
                 } else {
                     noteIdsString = noteIdsString.concat(" " + nid.trim());
-
                 }
             }
             ornament.addAttribute(new Attribute("note.order", noteIdsString.trim()));
@@ -123,7 +123,7 @@ public class OrnamentationMap extends GenericMap {
             }
         }
 
-        ornament.addAttribute(new  Attribute("repetitions", String.valueOf(repetitions)));
+        ornament.addAttribute(new Attribute("repetitions", String.valueOf(repetitions)));
 
         if ((id != null) && !id.isEmpty())
             ornament.addAttribute(new Attribute("xml:id", "http://www.w3.org/XML/1998/namespace", id));
@@ -304,6 +304,7 @@ public class OrnamentationMap extends GenericMap {
      */
     public void applyNotesToMaps(GenericMap map) {
         ArrayList<Element> toBeRemoved = new ArrayList<>();
+        Set<String> alreadyRemovedIds = new HashSet<>();                         // track principal notes already marked for removal
         ArrayList<KeyValue<Double, Element>> notes = map.getAllElementsOfType("note");
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
@@ -321,7 +322,10 @@ public class OrnamentationMap extends GenericMap {
 
             if(ornamNote == null)
                 continue;
-            toBeRemoved.add(ornamNote.getElement());
+            if (!alreadyRemovedIds.contains(ornamNote.getId())) {
+                toBeRemoved.add(ornamNote.getElement());
+                alreadyRemovedIds.add(ornamNote.getId());
+            }
             ornament.copyValue("date", ornamNote);
             ArrayList<MsmElement> children = ornament.getChildrenAsMsmElements();
             ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
@@ -516,9 +520,10 @@ public class OrnamentationMap extends GenericMap {
             }
         }
 
+        // Phase 1: collect all OrnamentData and their chordSequences, grouped by groupId
         OrnamentationStyle style = null;
+        ArrayList<OrnamentEntry> allEntries = new ArrayList<>();
 
-        // process each ornament entry in this ornamentationMap
         for (int i = 0; i < this.size(); ++i) {
             Element ornamentXml = this.getElement(i);
 
@@ -531,13 +536,11 @@ public class OrnamentationMap extends GenericMap {
                 continue;
             }
 
-            if ((style == null) || !ornamentXml.getLocalName().equals("ornament"))  // without a style we cannot interpret any ornament's name.ref attribute; if it is no ornament we cannot process it either
-                continue;           // skip the current element
+            if ((style == null) || !ornamentXml.getLocalName().equals("ornament"))
+                continue;
 
-            // read all data into an OrnamentData instance
             OrnamentData od = new OrnamentData();
             od.style = style;
-//            od.styleName = style.getName();   // not required
 
             Attribute OrnamentDefAtt = Helper.getAttribute("name.ref", ornamentXml);
             if (OrnamentDefAtt == null)
@@ -548,33 +551,28 @@ public class OrnamentationMap extends GenericMap {
                 continue;
 
             od.date = this.elements.get(i).getKey();
-//            od.xml = xml;     // not required
 
             Attribute scaleAtt = Helper.getAttribute("scale", ornamentXml);
             if (scaleAtt != null)
                 od.scale = Double.parseDouble(scaleAtt.getValue());
 
-//            Attribute att = Helper.getAttribute("xml:id", xml);   // not required
-//            if (att != null)
-//                od.xmlId = att.getValue();
 
-            // determine the note order and collect the notes which the ornament will be applied to
-            int noteOrderAscending = 1;                         // 1 = ascending pitch, -1 = descending pitch, 0 = ID sequence
-            ArrayList<ArrayList<Element>> chordSequence = null; // this will hold the chord/note sequence
+            // determine the chord sequence
+            int noteOrderAscending = 1;
+            ArrayList<ArrayList<Element>> chordSequence = null;
             Attribute noteOrderAtt = ornamentXml.getAttribute("note.order.perf");
             if (noteOrderAtt != null) {
                 String no = noteOrderAtt.getValue().trim();
                 switch (no) {
                     case "ascending pitch":
-//                        noteOrderAscending = 1;               // default initialization
                         break;
                     case "descending pitch":
                         noteOrderAscending = -1;
                         break;
-                    default:                                    // attribute note.order is a list of reference IDs to be read into the notes list
+                    default:
                         od.noteOrder = new ArrayList<>(Arrays.asList(no.replaceAll("#", "").split("\\s+")));
-                        if (od.noteOrder.isEmpty())             // empty note list, hence no notes to ornament
-                            continue;                           // continue with the next ornament
+                        if (od.noteOrder.isEmpty())
+                            continue;
                         chordSequence = new ArrayList<>();
                         noteOrderAscending = 0;
 
@@ -607,22 +605,21 @@ public class OrnamentationMap extends GenericMap {
                         }
                 }
             }
-            if (chordSequence == null) {                         // if no note sequence was specified so far
+            if (chordSequence == null) {
                 chordSequence = new ArrayList<>();
                 for (GenericMap map : maps) {
                     ArrayList<KeyValue<Double, Element>> notesAtDate = map.getAllElementsAt(od.date);
                     for (KeyValue<Double, Element> note : notesAtDate) {
                         if (note.getValue().getLocalName().equals("note")) {
-                            ArrayList<Element> chord = new ArrayList<>();
-                            chord.add(note.getValue());
-                            chordSequence.add(chord);
+                            ArrayList<Element> chord2 = new ArrayList<>();
+                            chord2.add(note.getValue());
+                            chordSequence.add(chord2);
                         }
                     }
                 }
                 if (chordSequence.isEmpty())
                     continue;
 
-                // sort the chords in the indicated order on the basis of the chord's first note's pitch; notes within chord are not reordered
                 int finalNoteOrderAscending = noteOrderAscending;
                 chordSequence.sort((n1, n2) -> {
                     double pitch1 = Double.parseDouble(Helper.getAttributeValue("midi.pitch", n1.get(0)));
@@ -631,15 +628,140 @@ public class OrnamentationMap extends GenericMap {
                 });
             }
 
-            // apply the ornament to the notes; this will create/edit their ornament.xx attributes for further
-            // processing later in the performance rendering pipeline; if new notes are generated, these will be
-            // returned by apply() and added to the first map in maps
-            for (ArrayList<Element> chord : od.apply(chordSequence)) {
-                for (Element note : chord) {
-                    maps.get(0).addElement(note);   // TODO: is there a better way to find out to which map the note should be added?
-                }
+            allEntries.add(new OrnamentEntry(od, chordSequence));
+        }
+
+        // Phase 2: group all entries implicitly by date – all ornaments on the same date
+        // are distributed proportionally across the principal note's duration.
+        // atEnd ornaments are anchored at the end of the note.
+        Map<Double, ArrayList<OrnamentEntry>> groups = new LinkedHashMap<>();
+        for (OrnamentEntry entry : allEntries)
+            groups.computeIfAbsent(entry.od.date, k -> new ArrayList<>()).add(entry);
+
+        // For each group: compute proportional distribution and apply
+        for (ArrayList<OrnamentEntry> group : groups.values()) {
+            if (group.isEmpty())
+                continue;
+
+            // determine the principal note duration in ticks from the first chord of the first entry
+            double principalDuration = getPrincipalDuration(group.get(0).chordSequence);
+
+            // separate into "front" (not atEnd) and "end" (atEnd) ornaments, preserving order
+            ArrayList<OrnamentEntry> frontOrnaments = new ArrayList<>();
+            ArrayList<OrnamentEntry> endOrnaments = new ArrayList<>();
+            for (OrnamentEntry entry : group) {
+                if (isAtEnd(entry.od))
+                    endOrnaments.add(entry);
+                else
+                    frontOrnaments.add(entry);
+            }
+
+            // resolve each ornament's raw frameLength in ticks
+            double totalRawLength = 0.0;
+            ArrayList<Double> rawLengths = new ArrayList<>();
+            ArrayList<Double> rawStarts = new ArrayList<>();
+            for (OrnamentEntry entry : group) {
+                double[] resolved = resolveFrameValues(entry.od, principalDuration);
+                rawLengths.add(resolved[1]);
+                rawStarts.add(resolved[0]);
+                totalRawLength += resolved[1];
+            }
+
+            // proportional scaling if total exceeds principal note duration
+            double scaleFactor = (totalRawLength > principalDuration && totalRawLength > 0.0)
+                    ? principalDuration / totalRawLength
+                    : 1.0;
+
+            // apply front ornaments sequentially from the beginning
+            double cursor = 0.0;
+            for (OrnamentEntry entry : frontOrnaments) {
+                int idx = group.indexOf(entry);
+                double effectiveLength = rawLengths.get(idx) * scaleFactor;
+                double effectiveStart = cursor + rawStarts.get(idx);
+                for (ArrayList<Element> chord : entry.od.apply(entry.chordSequence, effectiveStart, effectiveLength))
+                    for (Element note : chord)
+                        maps.get(0).addElement(note);
+                cursor += effectiveLength;
+            }
+
+            // apply end ornaments from the end backwards
+            double endCursor = principalDuration;
+            for (int i = endOrnaments.size() - 1; i >= 0; i--) {
+                OrnamentEntry entry = endOrnaments.get(i);
+                int idx = group.indexOf(entry);
+                double effectiveLength = rawLengths.get(idx) * scaleFactor;
+                double effectiveStart = endCursor - effectiveLength + rawStarts.get(idx);
+                for (ArrayList<Element> chord : entry.od.apply(entry.chordSequence, effectiveStart, effectiveLength))
+                    for (Element note : chord)
+                        maps.get(0).addElement(note);
+                endCursor -= effectiveLength;
             }
         }
+    }
+
+    /**
+     * helper class to collect ornament data and chord sequences for grouped processing
+     */
+    private static class OrnamentEntry {
+        final OrnamentData od;
+        final ArrayList<ArrayList<Element>> chordSequence;
+        OrnamentEntry(OrnamentData od, ArrayList<ArrayList<Element>> chordSequence) {
+            this.od = od;
+            this.chordSequence = chordSequence;
+        }
+    }
+
+    /**
+     * get the principal note's duration from the first note in the chord sequence
+     * @param chordSequence
+     * @return duration in ticks, or 0.0 if not found
+     */
+    private static double getPrincipalDuration(ArrayList<ArrayList<Element>> chordSequence) {
+        for (ArrayList<Element> chord : chordSequence) {
+            for (Element note : chord) {
+                Attribute durAtt = Helper.getAttribute("duration", note);
+                if (durAtt != null)
+                    return Double.parseDouble(durAtt.getValue());
+            }
+        }
+        return 0.0;
+    }
+
+    /**
+     * check whether the ornament is anchored at the end of the principal note,
+     * as defined by its OrnamentDef's TemporalSpread placement
+     * @param od the ornament data
+     * @return true if placement is "atEnd"
+     */
+    private static boolean isAtEnd(OrnamentData od) {
+        return od.ornamentDef != null
+                && od.ornamentDef.getTemporalSpread() != null
+                && od.ornamentDef.getTemporalSpread().isAtEnd();
+    }
+
+    /**
+     * resolve the raw frameStart and frameLength values of an ornament's TemporalSpread to ticks.
+     * Returns [frameStart, frameLength] in ticks.
+     * @param od
+     * @param principalDuration
+     * @return double[2] with [frameStart, frameLength]
+     */
+    private static double[] resolveFrameValues(OrnamentData od, double principalDuration) {
+        double start = 0.0;
+        double length = 0.0;
+
+        if (od.ornamentDef != null && od.ornamentDef.getTemporalSpread() != null) {
+            OrnamentDef.TemporalSpread ts = od.ornamentDef.getTemporalSpread();
+            start = ts.frameStart.getValue();
+            length = ts.frameLength.getValue();
+
+            if (ts.frameStart.isRelative())
+                start = (start * 0.01) * principalDuration;
+            if (ts.frameLength.isRelative())
+                length = (length * 0.01) * principalDuration;
+        }
+
+        return new double[]{ start, length };
     }
 
     /**

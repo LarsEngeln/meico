@@ -140,14 +140,21 @@ public class OrnamentDef extends AbstractDef {
      * @param noteOffShift
      */
     public void setTemporalSpread(double frameStart, double frameLength, TemporalValue.Domain frameDomain, double intensity, TemporalSpread.NoteOffShift noteOffShift) {
-       setTemporalSpread(TemporalValue.create(frameStart, frameDomain), TemporalValue.create(frameLength, frameDomain), intensity, noteOffShift);
+       setTemporalSpread(TemporalValue.create(frameStart, frameDomain), TemporalValue.create(frameLength, frameDomain), intensity, noteOffShift, false);
+    }
+    public void setTemporalSpread(double frameStart, double frameLength, TemporalValue.Domain frameDomain, double intensity, TemporalSpread.NoteOffShift noteOffShift, boolean atEnd) {
+       setTemporalSpread(TemporalValue.create(frameStart, frameDomain), TemporalValue.create(frameLength, frameDomain), intensity, noteOffShift, atEnd);
     }
     public void setTemporalSpread(TemporalValue frameStart, TemporalValue frameLength, double intensity, TemporalSpread.NoteOffShift noteOffShift) {
+        setTemporalSpread(frameStart, frameLength, intensity, noteOffShift, false);
+    }
+    public void setTemporalSpread(TemporalValue frameStart, TemporalValue frameLength, double intensity, TemporalSpread.NoteOffShift noteOffShift, boolean atEnd) {
         TemporalSpread temporalSpread = new TemporalSpread();
         temporalSpread.frameStart = frameStart;
         temporalSpread.frameLength = frameLength;
         temporalSpread.intensity = intensity;
         temporalSpread.noteOffShift = noteOffShift;
+        temporalSpread.placement = atEnd ? "atEnd" : "atStart";
         this.setTemporalSpread(temporalSpread);
     }
 
@@ -206,6 +213,7 @@ public class OrnamentDef extends AbstractDef {
                 def.setDynamicsGradient(-1.0, 1.0);
                 def.setTemporalSpread(-22.0, 66.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.False);
                 break;
+            case "mordent":
             case "upper mordent":
             case "lower mordent":
                 def.setDynamicsGradient(1.0, -1.0);
@@ -214,9 +222,24 @@ public class OrnamentDef extends AbstractDef {
             case "grace unacc":
                 def.setDynamicsGradient(1.0, -1.0);
                 def.setTemporalSpread(-90.0, 90.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic);
+                break;
             case "grace acc":
                 def.setDynamicsGradient(1.0, -1.0);
                 def.setTemporalSpread(0, 90.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic);
+                break;
+            case "grace acc delayed":
+                def.setDynamicsGradient(1.0, -1.0);
+                def.setTemporalSpread(0, 90.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic, true);
+                break;
+            case "grace unacc delayed":
+                def.setDynamicsGradient(1.0, -1.0);
+                def.setTemporalSpread(0, 90.0, TemporalValue.Domain.Ticks, 1.0, TemporalSpread.NoteOffShift.Monophonic, true);
+                break;
+            case "turn delayed":
+            case "upper turn delayed":
+            case "lower turn delayed":
+                def.setDynamicsGradient(1.0, -1.0);
+                def.setTemporalSpread(0, 50, TemporalValue.Domain.Relative, 1.0, TemporalSpread.NoteOffShift.Monophonic, true);
                 break;
             case "tremolo":
                 def.setDynamicsGradient(1.0, 0.0);
@@ -239,6 +262,7 @@ public class OrnamentDef extends AbstractDef {
         public TemporalValue frameLength = TemporalValue.create(0.0, TemporalValue.Domain.Ticks);    // must be >= 0.0
         public double intensity = 1.0;
         public NoteOffShift noteOffShift = NoteOffShift.False;
+        public String placement = "atStart"; // "atStart" (default) or "atEnd" – controls whether the ornament is anchored at the start or end of the principal note
         private String id = null;
         private Element xml;
 
@@ -309,6 +333,10 @@ public class OrnamentDef extends AbstractDef {
             Attribute idAtt = Helper.getAttribute("id", xml);
             if (idAtt != null)
                 this.id = idAtt.getValue();
+
+            Attribute placementAtt = Helper.getAttribute("placement", xml);
+            if (placementAtt != null)
+                this.placement = placementAtt.getValue(); // "atStart" or "atEnd"
         }
 
         /**
@@ -341,6 +369,18 @@ public class OrnamentDef extends AbstractDef {
          * @param chordSequence the sequence of the chords/notes in which the temporal spread is applied
          */
         public void apply(ArrayList<ArrayList<Element>> chordSequence) {
+            apply(chordSequence, null, null);
+        }
+
+        /**
+         * apply the temporal spread with optional effective frameStart/frameLength overrides (in ticks).
+         * These overrides are used when multiple ornaments share the same principal note
+         * and their frameLengths need proportional distribution.
+         * @param chordSequence the sequence of the chords/notes in which the temporal spread is applied
+         * @param effectiveFrameStart if non-null, overrides the computed frame start (in ticks)
+         * @param effectiveFrameLength if non-null, overrides the computed frame length (in ticks)
+         */
+        public void apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength) {
             if (chordSequence.size() < 1)   // if there is no chord/note or just one
                 return;                     // we don't do anything
 
@@ -365,6 +405,32 @@ public class OrnamentDef extends AbstractDef {
                     length = (length * 0.01) * d;
                 if(this.frameStart.isRelative())
                     start = (start * 0.01) * d;
+            }
+
+            // apply effective overrides if provided (from multi-ornament proportional distribution)
+            if (effectiveFrameStart != null)
+                start = effectiveFrameStart;
+            if (effectiveFrameLength != null)
+                length = effectiveFrameLength;
+
+            // if atEnd, place the frame at the end of the principal note's duration;
+            // frameStart is treated as an offset, so atEnd with frameStart=0
+            // means the ornament ends exactly at the note's end
+            if (this.isAtEnd() && effectiveFrameStart == null) {
+                double principalDuration = -1.0;
+                for (ArrayList<Element> chord : chordSequence) {
+                    for (Element note : chord) {
+                        Attribute durAtt = Helper.getAttribute("duration", note);
+                        if (durAtt != null) {
+                            principalDuration = Double.parseDouble(durAtt.getValue());
+                            break;
+                        }
+                    }
+                    if (principalDuration >= 0.0)
+                        break;
+                }
+                if (principalDuration >= 0.0)
+                    start = principalDuration - length + start;
             }
 
             // process all chords/notes; spacing as if there were n+1 positions,
@@ -504,6 +570,9 @@ public class OrnamentDef extends AbstractDef {
                 ts.addAttribute(idAtt);
             }
 
+            if (this.isAtEnd())
+                ts.addAttribute(new Attribute("placement", "atEnd"));
+
             this.setXml(ts);
             return this.xml;
         }
@@ -550,6 +619,15 @@ public class OrnamentDef extends AbstractDef {
          */
         public String getId() {
             return this.id;
+        }
+
+        /**
+         * returns true if this ornament is anchored at the end of the principal note ("atEnd"),
+         * false if it is anchored at the start ("atStart", default)
+         * @return true if placement is "atEnd"
+         */
+        public boolean isAtEnd() {
+            return "atEnd".equals(this.placement);
         }
     }
 
