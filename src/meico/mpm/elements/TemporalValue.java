@@ -18,15 +18,15 @@ public class TemporalValue {
         Relative,
         Milliseconds,
         Ticks,
-        Notelength // 8th, 16th, ..
+        //Notelength // 8th, 16th, ..
     }
     private static final Map<Domain, String> domainStrings;
     static {
         Map<Domain, String> map = new HashMap<>();
         map.put(Domain.Milliseconds, "ms");
-        map.put(Domain.Notelength, "th");
         map.put(Domain.Relative, "%");
         map.put(Domain.Ticks, "ticks");
+        //map.put(Domain.Notelength, "th");
         map.put(Domain.Unknown, "?");
         domainStrings = Collections.unmodifiableMap(map);
     }
@@ -34,9 +34,9 @@ public class TemporalValue {
     static {
         Map<Domain, String> map = new HashMap<>();
         map.put(Domain.Milliseconds, "milliseconds");
-        map.put(Domain.Notelength, "note length");
         map.put(Domain.Relative, "relative");
         map.put(Domain.Ticks, "ticks");
+        //map.put(Domain.Notelength, "note length");
         map.put(Domain.Unknown, "unknown");
         domainNameStrings = Collections.unmodifiableMap(map);
     }
