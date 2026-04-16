@@ -450,13 +450,13 @@ public class TemporalValue {
         return getDomain() == Domain.Ticks;
     }
 
-    /**
+    /** TODO
      * returns if it is a note length
      * @return
      */
-    public boolean isNoteLength() {
+    /* public boolean isNoteLength() {
         return getDomain() == Domain.Notelength;
-    }
+    }*/
 
     /**
      * returns if the domain is unknown
