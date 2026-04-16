@@ -285,25 +285,30 @@ public class OrnamentDef extends AbstractDef {
             this.xml = xml;
 
             Attribute domain = Helper.getAttribute("time.unit", xml);
-            if (domain == null) {
-                frameStart.setDomain(TemporalValue.Domain.Ticks);
-                frameLength.setDomain(TemporalValue.Domain.Ticks);
-            }
-            else {
+            frameStart.setDomain(TemporalValue.Domain.Ticks);
+            frameLength.setDomain(TemporalValue.Domain.Ticks);
+
+            if (domain != null) {
                 switch (domain.getValue()) {
                     case "milliseconds":
                         frameStart.setDomain(TemporalValue.Domain.Milliseconds);
                         frameLength.setDomain(TemporalValue.Domain.Milliseconds);
                         break;
+                    case "relative":
+                        frameStart.setDomain(TemporalValue.Domain.Relative);
+                        frameLength.setDomain(TemporalValue.Domain.Relative);
+                        break;
                     // TODO: TemporalValue.Domain.RelativeToNoteDuration?
                     case "ticks":
                     default:
-//                                this.temporalSpread.frameDomain = TemporalValue.Domain.TICKS;   // unnecessary because default
-                        break;
+                        // unnecessary because default
                 }
             }
 
-            Attribute start = Helper.getAttribute("frame.start", xml);
+            Attribute start = Helper.getAttribute("frame.offset", xml);
+            if(start == null) {
+                start = Helper.getAttribute("frame.start", xml);
+            }
             if (start != null)
                 this.frameStart.setValue(start.getValue());
 
@@ -538,6 +543,7 @@ public class OrnamentDef extends AbstractDef {
             switch (this.frameStart.getDomain()) {
                 case Ticks:
                     // not necessary because this is the default value when absent
+                    ts.addAttribute(new Attribute("time.unit", "ticks"));
                     break;
                 case Milliseconds:
                     ts.addAttribute(new Attribute("time.unit", "milliseconds"));
