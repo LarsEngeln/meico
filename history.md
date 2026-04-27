@@ -1,6 +1,6 @@
 ### Version History
 
-#### v0.11.12 candidate
+#### v0.11.14 candidate
 - new methods for class `meico.mei.Helper`: adds variant for `findChild()` that finds child elements by attribute value, adds variant for `findSibling()` that finds sibling by ID, variant for `cloneElement()` that creates deep or flat element copies, variant for `createElement()` that creates elements with short UUID-based IDs, `removeAllAttributes()` removes all except specified attributes from element, `appendChildAfterSibling()` inserts child after sibling,  adds variants for `addUUID()` for short UUID-based xml:id attributes with or without namespace, `shiftNoteDiatonicly()` shifts note pitch diatonically, `getHalfstepsFromC()` returns semitones from C, `getHalfstepsBetween()` calculates semitone distance.
 - New class `meico.xml.RichElement` as an Attribute-first base wrapper for XML element access with methods for: attribute access (`get()`, `set()`, `has()`, `is()`, `getAsDouble()`, `getAsInteger()`, `copyValue()`), DOM manipulation (`appendChild()`, `getParent()`, `removeParent()`), child access (`getChildren()`, `getChildrenOfType()`, `getFirstChildByName()`, `getFromChild()`), and ID management (`getId()`, `setId()`, `createNewId()`). Supports `.ges` attribute handling and deep copying.
 - New class `meico.mei.MeiElement` extending RichElement with MEI namespace handling.
@@ -14,6 +14,7 @@
 - enhances class `meico.mpm.elements.styles.defs.OrnamentDef` with the use of `meico.mpm.elements.TemporalValue` for its temporal attributes. Added some standard temporal spreads for ornaments (including `"grace acc delayed"`, `"grace unacc delayed"` defaults). 
 - New attribute for `TemporalSpread` for defining the `placement` of an ornament that is either `atStart` or `atEnd`, with providing a method `isAtEnd()`: when true (so `placement` is `atEnd`, the ornament is placed at the end of the principal note. `TemporalSpread.apply()` now accepts optional `effectiveFrameStart`/`effectiveFrameLength` overrides for multi-ornament proportional distribution and handles `atEnd` during rendering.
 - New methods in class `meico.mpm.elements.maps.OrnamentationMap` to handle the new ornamentation data and render it to the map by applying ornament notes (`applyNotesToMaps()`, `copyNotePerfInformation()`) in `apply()`. Added support for multiple OrnamentDefs per principal note: if total frameLengths exceeds 100% of the principal note, the ornaments are proportionally distributed across the note's duration. New helper methods `resolveFrameValues()`, `getPrincipalDuration()`, and inner class `OrnamentEntry`.
+
 
 #### v0.11.13
 - Expanded handling of MEI elements `oStaff` and `oLayer`. Element `ossia` will now be processed.
