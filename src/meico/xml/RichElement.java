@@ -40,7 +40,7 @@ public class RichElement {
      * @param localName
      */
     public RichElement(String localName)  {
-        this.element = Helper.createElement(localName, true);
+        this.element = Helper.createElement(localName, false);
         initId();
     }
 
@@ -50,7 +50,7 @@ public class RichElement {
     private void initId() {
         this.id = this.get("id");
         if(this.id == null) {
-            this.id = Helper.addUUID(this.element, true);
+            this.id = Helper.addUUID(this.element, false);
         }
     }
 

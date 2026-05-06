@@ -41,21 +41,21 @@ public class MsmElement extends RichElement {
      * initializes the id of the element. If there is no id, a new one is created and assigned to the element.
      */
     private void initId() {
-        this.id = this.get("id");
-        if(this.id == null) {
-            this.id = Helper.addUUID(this.element, true, false);
-        }
+        //this.id = this.get("id");
+        //if(this.id == null) {
+        //    this.id = Helper.addUUID(this.element, false, true);
+        //}
     }
 
     /**
      * sets the id of the element and adds it as an attribute to the element
      * @param id
      */
-    public void setId(String id) {
+    /*public void setId(String id) {
         this.id = id;
         Attribute a = new Attribute("id", this.id);                              // create an attribute
         this.element.addAttribute(a);                                                 // add attribute to the element
-    }
+    }*/
 
     /**
      * creates a new id for the element and assigns it to the element. The new id is generated using the Helper.addUUID function.
