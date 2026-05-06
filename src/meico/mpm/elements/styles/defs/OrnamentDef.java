@@ -154,7 +154,7 @@ public class OrnamentDef extends AbstractDef {
         temporalSpread.frameLength = frameLength;
         temporalSpread.intensity = intensity;
         temporalSpread.noteOffShift = noteOffShift;
-        temporalSpread.placement = atEnd ? "atEnd" : "atStart";
+        temporalSpread.alignment = atEnd ? "at end" : "at start";
         this.setTemporalSpread(temporalSpread);
     }
 
@@ -259,10 +259,10 @@ public class OrnamentDef extends AbstractDef {
      */
     public static class TemporalSpread {
         public TemporalValue frameStart = TemporalValue.create(0.0, TemporalValue.Domain.Ticks);
-        public TemporalValue frameLength = TemporalValue.create(0.0, TemporalValue.Domain.Ticks);    // must be >= 0.0
+        public TemporalValue frameLength = TemporalValue.create(100.0, TemporalValue.Domain.Relative);    // must be >= 0.0
         public double intensity = 1.0;
         public NoteOffShift noteOffShift = NoteOffShift.False;
-        public String placement = "atStart"; // "atStart" (default) or "atEnd" – controls whether the ornament is anchored at the start or end of the principal note
+        public String alignment = "at start"; // "at start" (default) or "at end" – controls whether the ornament is anchored at the start or end of the principal note
         private String id = null;
         private Element xml;
 
@@ -339,9 +339,9 @@ public class OrnamentDef extends AbstractDef {
             if (idAtt != null)
                 this.id = idAtt.getValue();
 
-            Attribute placementAtt = Helper.getAttribute("placement", xml);
-            if (placementAtt != null)
-                this.placement = placementAtt.getValue(); // "atStart" or "atEnd"
+            Attribute alignmentAtt = Helper.getAttribute("alignment", xml);
+            if (alignmentAtt != null)
+                this.alignment = alignmentAtt.getValue(); // "at start" or "at end"
         }
 
         /**
@@ -577,7 +577,7 @@ public class OrnamentDef extends AbstractDef {
             }
 
             if (this.isAtEnd())
-                ts.addAttribute(new Attribute("placement", "atEnd"));
+                ts.addAttribute(new Attribute("alignment", "at end"));
 
             this.setXml(ts);
             return this.xml;
@@ -628,12 +628,12 @@ public class OrnamentDef extends AbstractDef {
         }
 
         /**
-         * returns true if this ornament is anchored at the end of the principal note ("atEnd"),
-         * false if it is anchored at the start ("atStart", default)
-         * @return true if placement is "atEnd"
+         * returns true if this ornament is anchored at the end of the principal note ("at end"),
+         * false if it is anchored at the start ("at start", default)
+         * @return true if alignment is "at end"
          */
         public boolean isAtEnd() {
-            return "atEnd".equals(this.placement);
+            return "at end".equals(this.alignment);
         }
     }
 

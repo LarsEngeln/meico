@@ -393,7 +393,7 @@ public class OrnamentationMap extends GenericMap {
 
                 double maxNotes = chords.size();
                 String repetitions = ornament.get("repetitions");
-                if(repetitions != null && !repetitions.equals("0")) {
+                if(repetitions != null && !repetitions.equals("-1")) {
                     maxNotes = Double.parseDouble(repetitions) * rptNotesAmount;
                 }
                 else {
@@ -729,9 +729,9 @@ public class OrnamentationMap extends GenericMap {
 
     /**
      * check whether the ornament is anchored at the end of the principal note,
-     * as defined by its OrnamentDef's TemporalSpread placement
+     * as defined by its OrnamentDef's TemporalSpread alignment
      * @param od the ornament data
-     * @return true if placement is "atEnd"
+     * @return true if alignment is "atEnd"
      */
     private static boolean isAtEnd(OrnamentData od) {
         return od.ornamentDef != null

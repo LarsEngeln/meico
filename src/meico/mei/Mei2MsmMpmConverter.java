@@ -2827,7 +2827,7 @@ public class Mei2MsmMpmConverter {
         //if(unitdurAttr == null && numAttr == null && stemModAttr == null)                 // treat as chord if no unitdir nor num attribute is given
          //   this.processChord(trem);
 
-        int repetitions = 0;
+        int repetitions = -1;
         if (unitdurAttr != null) {
             int unitdur = Integer.parseInt(unitdurAttr);
             int dur = Integer.parseInt(notes.get(0).get("dur"));
