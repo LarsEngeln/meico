@@ -48,7 +48,7 @@ public class RichElement {
      * initializes the id of this element. If the element already has an id, it will be used. Otherwise, a new id will be generated and set to the element.
      */
     private void initId() {
-        this.id = this.get("id");
+        setId(this.get("id"));
         if(this.id == null) {
             this.id = Helper.addUUID(this.element, false);
         }
@@ -67,6 +67,7 @@ public class RichElement {
      * @param id
      */
     public void setId(String id) {
+        if(id == null) return;
         this.id = id;
         Attribute a = new Attribute("id", this.id);                              // create an attribute
         a.setNamespace("xml", "http://www.w3.org/XML/1998/namespace");      // set its namespace to xml
@@ -189,6 +190,12 @@ public class RichElement {
      */
     public void set(String attributeName, int value) {
         this.element.addAttribute(new Attribute(attributeName, Integer.toString(value)));
+    }
+
+    public void remove(String attributeName) {
+        Attribute attribute = Helper.getAttribute(attributeName, this.element);
+        if(attribute != null)
+            this.element.removeAttribute(attribute);
     }
     /**
      * sets (adds/overrides) the Attribute attributeName fromThis

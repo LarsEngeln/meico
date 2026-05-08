@@ -220,23 +220,35 @@ public class MeiOrnamentExpander {
 
         // No slur found: walk siblings until a note or chord is found (or null)
         Element previousElement = Helper.getPreviousSiblingElement(element.getElement());
-        while (previousElement != null && !previousElement.getLocalName().equals("note") && !previousElement.getLocalName().equals("chord"))
+        while (previousElement != null
+                && !previousElement.getLocalName().equals("note")
+                && !previousElement.getLocalName().equals("chord")
+                && !previousElement.getLocalName().equals("beam")
+                && !previousElement.getLocalName().equals("rest")
+                && !previousElement.getLocalName().equals("graceGrp")
+        )
             previousElement = Helper.getPreviousSiblingElement(previousElement);
 
         Element nextElement = Helper.getNextSiblingElement(element.getElement());
-        while (nextElement != null && !nextElement.getLocalName().equals("note") && !nextElement.getLocalName().equals("chord"))
+        while (nextElement != null
+                && !previousElement.getLocalName().equals("note")
+                && !previousElement.getLocalName().equals("chord")
+                && !previousElement.getLocalName().equals("beam")
+                && !previousElement.getLocalName().equals("rest")
+                && !previousElement.getLocalName().equals("graceGrp")
+        )
             nextElement = Helper.getNextSiblingElement(nextElement);
 
         if (nextElement == null && previousElement == null) {
             graceIsBefore.set(true);
             return null;
         }
-        if (nextElement != null && previousElement == null) {
+        if (nextElement != null && (previousElement == null || previousElement.getLocalName().equals("rest"))) {
             principalNote = new MeiElement(nextElement);
             graceIsBefore.set(true);
             return principalNote;
         }
-        if (previousElement != null && nextElement == null) {
+        if (previousElement != null && nextElement == null || nextElement.getLocalName().equals("rest")) {
             principalNote = new MeiElement(previousElement);
             graceIsBefore.set(false);
             return principalNote;
@@ -247,17 +259,19 @@ public class MeiOrnamentExpander {
         if(graceType == null)
             graceType = "";
 
-        if(!graceType.equals("unacc") && nextElement.getLocalName().equals("note") || nextElement.getLocalName().equals("chord")) {
+        if(graceType.equals("acc")) {
             principalNote = new MeiElement(nextElement);
             graceIsBefore.set(true);
+            return principalNote;
         }
-        if(previousElement.getLocalName().equals("note") || previousElement.getLocalName().equals("chord")) {
+        if(graceType.equals("unacc")) {
             principalNote = new MeiElement(previousElement);
             graceIsBefore.set(false);
+            return principalNote;
         }
-        principalNote = new MeiElement(nextElement, false);
-        graceIsBefore.set(true);
 
+        principalNote = new MeiElement(nextElement);
+        graceIsBefore.set(true);
         return principalNote;
     }
 
@@ -275,7 +289,7 @@ public class MeiOrnamentExpander {
             return;
 
         String graceType = element.get("grace");
-        if(graceType == null || graceType.equals("unacc"))
+        if(graceType == null || !graceType.equals("unacc"))
             graceType = "acc";
         String ornamentName = "grace " + graceType;
         if(!graceIsBefore.get()) {
@@ -290,6 +304,7 @@ public class MeiOrnamentExpander {
 
         if(!graceIsBefore.get() && principalIsNote) {
             MeiElement graceNote = new MeiElement("note");
+            graceNote.setId(principalNote.getId() + "_grace");
             graceNote.set("oct", principalNote.get("oct"));
             graceNote.set("pname", principalNote.get("pname"));
             ornamentExpansion.addElement(graceNote);
@@ -301,6 +316,7 @@ public class MeiOrnamentExpander {
         }
         for (MeiElement n : notes.values()) {
             MeiElement note = new MeiElement(n.getElement(), true);
+            note.setId(note.getId() + "_grace");
 
             if(halfStepsTo != null) {
                 double halfsteps = getHalfstepsBetween(halfStepsTo, note);
@@ -311,6 +327,7 @@ public class MeiOrnamentExpander {
 
         if(graceIsBefore.get()) {
             MeiElement graceNote = new MeiElement("note");
+            graceNote.setId(principalNote.getId() + "_grace");
             graceNote.set("oct", principalNote.get("oct"));
             graceNote.set("pname", principalNote.get("pname"));
             ornamentExpansion.addElement(graceNote);

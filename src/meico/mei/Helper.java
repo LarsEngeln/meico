@@ -431,7 +431,10 @@ public class Helper {
         Element clone = new Element(e.getLocalName());
         clone.setNamespaceURI(e.getNamespaceURI());
         for (int i = e.getAttributeCount()-1; i >= 0; --i) {
-            clone.addAttribute(new Attribute(e.getAttribute(i).getLocalName(), e.getAttribute(i).getValue()));
+            Attribute att = new Attribute(e.getAttribute(i).getLocalName(), e.getAttribute(i).getValue());
+            if(att.getLocalName().equals("id"))
+                att.setNamespace("xml", "http://www.w3.org/XML/1998/namespace");
+            clone.addAttribute(att);
         }
 
         if(deep) {

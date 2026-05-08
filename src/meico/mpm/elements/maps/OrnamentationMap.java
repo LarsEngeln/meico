@@ -67,6 +67,8 @@ public class OrnamentationMap extends GenericMap {
 
     public static OrnamentationMap createOrnamentationMap(OrnamentationMap ornamentationMap) throws Exception {
         OrnamentationMap clone = createOrnamentationMap();
+        if(ornamentationMap == null)
+            return clone;
         clone.setId(ornamentationMap.getId());
         clone.setType(ornamentationMap.getType());
         clone.setHeaders(ornamentationMap.getGlobalHeader(), ornamentationMap.getLocalHeader());
@@ -442,7 +444,7 @@ public class OrnamentationMap extends GenericMap {
                         break;
                     }
                 }
-                if(!ornament.get("name.ref").equals("tremolo") && note != null && lastNote != null && note.isSameNote(lastNote)) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
+                if(!ornament.get("name.ref").equals("tremolo") && note != null && lastNote != null && note.get("midi.pitch") == lastNote.get("midi.pitch")) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
                     note = null;
                 }
 

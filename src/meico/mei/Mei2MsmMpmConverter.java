@@ -2858,6 +2858,11 @@ public class Mei2MsmMpmConverter {
             for(MeiElement note : chord.getChildrenAsMeiElements("note")) {
                 MsmElement msmNote = MeiNote2MsmNote(new MeiElement(note.getElement()));
                 if (msmNote != null) {
+                    //Helper.pname2midi(msmNote.getPitch().getPname());
+                    msmNote.set("interval.chromatic", 0.0);
+                    msmNote.remove("pitchname");
+                    msmNote.remove("accidentals");
+                    msmNote.remove("octave");
                     od.notes.add(msmNote.getElement());
                 }
 
@@ -2985,18 +2990,9 @@ public class Mei2MsmMpmConverter {
                 od.noteOrder = new ArrayList<>();
 
                 for (MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
-                    if (elem.getName().equals("barLine")) {
-                        od.noteOrder.add(getRptString(elem));
-                        continue;
-                    }
-
-                    MsmElement msmNote = MeiNote2MsmNote(new MeiElement(elem.getElement()));
-                    if (msmNote != null)
-                        od.notes.add(msmNote.getElement());
-
-                    od.noteOrder.add("#" + elem.getId());
+                    addMeiNoteToOrnamentData(elem, od);
                 }
-
+                od.noteOrder.add("|");
                 addToOrnamentationMap(xmlElement, od);
             }
         }
@@ -3012,18 +3008,7 @@ public class Mei2MsmMpmConverter {
 
             for (MeiElement graceGrp : graceGrps) {
                 for(MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
-
-                    if(elem.getName().equals("barLine")) {
-                        od.noteOrder.add(getRptString(elem));
-                        continue;
-                    }
-
-                    MsmElement msmNote = MeiNote2MsmNote(new MeiElement(elem.getElement()));
-                    if(msmNote != null) {
-                        od.notes.add(msmNote.getElement());
-                    }
-
-                    od.noteOrder.add("#" + elem.getId());
+                    addMeiNoteToOrnamentData(elem, od);
                 }
                 od.noteOrder.add("|");
             }
@@ -3033,6 +3018,33 @@ public class Mei2MsmMpmConverter {
 
             addToOrnamentationMap(xmlElement, od);
         }
+    }
+
+    /**
+     * adds elem to od by converting the MEI note to MPM note and updating note.order
+     * @param elem MEI note
+     * @param od
+     */
+    private void addMeiNoteToOrnamentData(MeiElement elem, OrnamentData od) {
+        if (elem.getName().equals("barLine")) {
+            od.noteOrder.add(getRptString(elem));
+            return;
+        }
+
+        MsmElement msmNote = MeiNote2MsmNote(new MeiElement(elem.getElement()));
+        if (msmNote != null) {
+            if(elem.has("intm")) {
+                String intm = elem.get("intm");
+                intm = intm.replaceAll("hs", "").trim();
+                msmNote.set("interval.chromatic", intm);
+            }
+            msmNote.remove("pitchname");
+            msmNote.remove("accidentals");
+            msmNote.remove("octave");
+            od.notes.add(msmNote.getElement());
+        }
+
+        od.noteOrder.add("#" + elem.getId());
     }
 
     /**
