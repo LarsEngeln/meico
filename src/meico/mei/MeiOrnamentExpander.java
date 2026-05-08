@@ -346,7 +346,7 @@ public class MeiOrnamentExpander {
      * @return a list of all MeiElement notes and chords found
      */
     private Map<String, MeiElement> collectAllNotes(MeiElement element) {
-        Map<String, MeiElement> notes = new HashMap<String, MeiElement>();
+        Map<String, MeiElement> notes = new LinkedHashMap<String, MeiElement>();
         String elementName = element.getName();
 
         // If this element is a note or chord, add it to the list
