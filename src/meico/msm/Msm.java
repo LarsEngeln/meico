@@ -875,10 +875,21 @@ public class Msm extends AbstractMsm {
      * @return
      */
     public Midi exportExpressiveMidi(Performance performance, boolean generateProgramChanges) {
+        return exportExpressiveMidi(performance, generateProgramChanges, false);
+    }
+    /**
+     * this method applies the specified performance to the msm data and exports expressive midi
+     * @param performance
+     * @param generateProgramChanges
+     * @return
+     */
+    public Midi exportExpressiveMidi(Performance performance, boolean generateProgramChanges, boolean writeExpressiveMsm) {
         if (performance == null)
             return this.renderMidi(83.33, true, true);
 
         Msm expressiveMsm = performance.perform(this);
+        if(writeExpressiveMsm)
+            expressiveMsm.writeMsm(Helper.getFilenameWithoutExtension(expressiveMsm.getFile().getPath()) + "-expressive.msm");
         return expressiveMsm.renderMidi(83.33, generateProgramChanges, true);
     }
 
