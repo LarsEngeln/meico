@@ -1249,16 +1249,19 @@ public class Msm extends AbstractMsm {
 
                 Attribute velocityAtt = Helper.getAttribute("velocity", n);                                         // get the velocity attribute
                 int velocity = (velocityAtt == null) ? 100 : Math.round(Float.parseFloat(velocityAtt.getValue()));  // if there is no velocity attribute set velocity to 100 by default, otherwise Math.round(float) outputs the integer velocity
-                track.add(EventMaker.createNoteOn(chan, date, pitch, velocity));
+                track.add(EventMaker.createNoteOn(chan, Math.max(0, date), pitch, velocity));
 
                 long dateEnd;
                 Attribute endAtt = Helper.getAttribute("milliseconds.date.end", n);
                 if (endAtt == null) {
                     System.err.println("Missing attribute \"milliseconds.date.end\" in element " + n.toXML() + ". Using attribute \"duration\" instead.");
                     long dur = Math.round(Double.parseDouble(Helper.getAttributeValue("duration", n)));
-                    dateEnd = date + dur;
+                    dateEnd = Math.max(0, date) + dur;
                 } else {
                     dateEnd = Math.round(Double.parseDouble(endAtt.getValue()));
+                    if(dateEnd < 0) {
+                        dateEnd = -(date-dateEnd);
+                    }
                 }
                 track.add(EventMaker.createNoteOff(chan, dateEnd, pitch, 0));
             } else {
