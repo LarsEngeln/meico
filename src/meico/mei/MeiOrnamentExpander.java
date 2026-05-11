@@ -225,7 +225,6 @@ public class MeiOrnamentExpander {
                 && !previousElement.getLocalName().equals("chord")
                 && !previousElement.getLocalName().equals("beam")
                 && !previousElement.getLocalName().equals("rest")
-                && !previousElement.getLocalName().equals("graceGrp")
         )
             previousElement = Helper.getPreviousSiblingElement(previousElement);
 
@@ -235,7 +234,6 @@ public class MeiOrnamentExpander {
                 && !previousElement.getLocalName().equals("chord")
                 && !previousElement.getLocalName().equals("beam")
                 && !previousElement.getLocalName().equals("rest")
-                && !previousElement.getLocalName().equals("graceGrp")
         )
             nextElement = Helper.getNextSiblingElement(nextElement);
 
@@ -301,10 +299,12 @@ public class MeiOrnamentExpander {
         ornamentExpansion.setLabel(ornamentName);
 
         boolean principalIsNote = principalNote.getName().equals("note");
+        String dur = notes.values().iterator().next().get("dur");
 
         if(!graceIsBefore.get() && principalIsNote) {
             MeiElement graceNote = new MeiElement("note");
-            graceNote.setId(principalNote.getId() + "_grace");
+            graceNote.setId(graceNote.getId() + "_principal");
+            graceNote.set("dur", dur);
             graceNote.set("oct", principalNote.get("oct"));
             graceNote.set("pname", principalNote.get("pname"));
             ornamentExpansion.addElement(graceNote);
@@ -327,7 +327,8 @@ public class MeiOrnamentExpander {
 
         if(graceIsBefore.get()) {
             MeiElement graceNote = new MeiElement("note");
-            graceNote.setId(principalNote.getId() + "_grace");
+            graceNote.setId(graceNote.getId() + "_principal");
+            graceNote.set("dur", dur);
             graceNote.set("oct", principalNote.get("oct"));
             graceNote.set("pname", principalNote.get("pname"));
             ornamentExpansion.addElement(graceNote);
@@ -502,7 +503,10 @@ public class MeiOrnamentExpander {
 
             int alteration = Integer.parseInt(alterationEntry);
             Helper.shiftNoteDiatonicly(note.getElement(), alteration);
-            note.set("accid", getCurrentAccid(note));                   // explicitly set the accid
+
+            String accid = getCurrentAccid(note);
+            if(!accid.isEmpty())
+                note.set("accid", accid);                   // explicitly set the accid
 
             switch (alteration) {
                 case 0:
