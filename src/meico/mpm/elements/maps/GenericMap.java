@@ -618,6 +618,26 @@ public class GenericMap extends AbstractXmlSubtree {
     }
 
     /**
+     * remove the map entry with the specific xml:id
+     * @param id
+     */
+    public void removeElement(String id) {
+        for (KeyValue<Double, Element> e : this.elements) {
+            String elemId = Helper.getAttributeValue("id", e.getValue());
+            if (elemId.equals(id)) {
+                for(Element elem : this.getXml().getChildElements()) {
+                    if(Helper.getAttributeValue("id", elem).equals(id)) {
+                        this.getXml().removeChild(elem);
+                        break;
+                    }
+                }
+                this.elements.remove(e);
+                return;
+            }
+        }
+    }
+
+    /**
      * this method generates a style switch (an MPM style element) and adds it to the map
      * @param date
      * @param styleName a reference to a styleDef

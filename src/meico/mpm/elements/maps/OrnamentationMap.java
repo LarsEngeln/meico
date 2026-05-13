@@ -7,6 +7,7 @@ import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
 import meico.msm.MsmElement;
 import meico.supplementary.KeyValue;
+import meico.xml.RichElement;
 import nu.xom.Attribute;
 import nu.xom.Element;
 
@@ -311,24 +312,34 @@ public class OrnamentationMap extends GenericMap {
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
             MsmElement ornament = new MsmElement(this.getElement(i));
-            MsmElement ornamNote = null;
+            MsmElement principalNote = null;
             for(KeyValue<Double, Element> dateElement : notes) {  // find the note
                 MsmElement note = new MsmElement(dateElement.getValue());
 
                 if (note.getId().equals(ornament.getId())) {
-                    ornamNote = note;
+                    principalNote = note;
 
                     break;
                 }
             }
 
-            if(ornamNote == null)
+            if(principalNote == null)
                 continue;
-            if (!alreadyRemovedIds.contains(ornamNote.getId())) {
-                toBeRemoved.add(ornamNote.getElement());
-                alreadyRemovedIds.add(ornamNote.getId());
+
+            if (!alreadyRemovedIds.contains(principalNote.getId())) {
+                toBeRemoved.add(principalNote.getElement());
+                alreadyRemovedIds.add(principalNote.getId());
             }
-            ornament.copyValue("date", ornamNote);
+            if(ornament.get("name.ref").equals("tremolo")) { // removing tremNotes
+                for(RichElement note : ornament.getChildren()) {
+                    if(!alreadyRemovedIds.contains(note.getId())) {
+                        toBeRemoved.add(note.getElement());
+                        alreadyRemovedIds.add(note.getId());
+                    }
+                }
+            }
+
+            ornament.copyValue("date", principalNote);
             ArrayList<MsmElement> children = ornament.getChildrenAsMsmElements();
             ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
             Map<Integer, Integer> repeats = new HashMap<>();
@@ -396,12 +407,12 @@ public class OrnamentationMap extends GenericMap {
                 double maxNotes = chords.size();
                 String repetitions = ornament.get("repetitions");
                 if(repetitions != null && !repetitions.equals("-1")) {
-                    maxNotes = Double.parseDouble(repetitions) * rptNotesAmount;
+                    maxNotes = (Double.parseDouble(repetitions) + 1.0) * rptNotesAmount; // play at least once ("+ 1.0"), if no repetition ("repetitions == 0")
                 }
                 else {
-                    //Double rel = ornamNote.getDuration() / noteOrder.size();
+                    //Double rel = principalNote.getDuration() / noteOrder.size();
                     int rptNoteLength = 135;
-                    maxNotes = Math.ceil(ornamNote.getDuration() / rptNoteLength);
+                    maxNotes = Math.ceil(principalNote.getDuration() / rptNoteLength);
                 }
 
                 while(maxNotes >= (notesToAdd.size() + chords.size() + rptNotesAmount)) {
@@ -444,7 +455,7 @@ public class OrnamentationMap extends GenericMap {
                         break;
                     }
                 }
-                if(!ornament.get("name.ref").equals("tremolo") && note != null && lastNote != null && note.get("midi.pitch") == lastNote.get("midi.pitch")) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
+                if(!ornament.get("name.ref").equals("tremolo") && note != null && lastNote != null && note.get("midi.pitch").equals(lastNote.get("midi.pitch"))) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
                     note = null;
                 }
 
@@ -454,7 +465,7 @@ public class OrnamentationMap extends GenericMap {
                 }
                 lastNote = note;
 
-                copyNotePerfInformation(note, ornamNote);
+                copyNotePerfInformation(note, principalNote);
 
                 noteOrder.set(j, note.getId());
                 map.addElement(note.getElement());
@@ -464,32 +475,32 @@ public class OrnamentationMap extends GenericMap {
         }
 
         for(Element element : toBeRemoved) {
-            map.removeElement(element);
+            map.removeElement(Helper.getAttributeValue("id", element));
         }
     }
 
     /**
      * copy the performance attributes of the original note to the ornament note.
      * @param note
-     * @param ornamNote
+     * @param principalNote
      */
-    private static void copyNotePerfInformation(MsmElement note, MsmElement ornamNote) {
+    private static void copyNotePerfInformation(MsmElement note, MsmElement principalNote) {
         note.createNewId(); // we want a new ID as we might generated multiple notes from the seed note
-        if(ornamNote == null)
+        if(principalNote == null)
             return;
-        note.copyValue("date", ornamNote);
-        note.copyValue("duration", ornamNote);
-        note.copyValue("layer", ornamNote);
-        note.copyValue("date.perf", ornamNote);
-        note.copyValue("date.end.perf", ornamNote);
-        note.copyValue("duration.perf", ornamNote);
-        note.copyValue("milliseconds.date", ornamNote);
-        note.copyValue("milliseconds.date.end", ornamNote);
-        note.copyValue("velocity", ornamNote);
-        note.copyValue("detuneCents", ornamNote);
-        note.copyValue("detuneHz", ornamNote);
-        note.copyValue("ornament.dynamics", ornamNote);
-        note.copyValue("ornament.date.offset", ornamNote);
+        note.copyValue("date", principalNote);
+        note.copyValue("duration", principalNote);
+        note.copyValue("layer", principalNote);
+        note.copyValue("date.perf", principalNote);
+        //note.copyValue("date.end.perf", principalNote);
+        note.copyValue("duration.perf", principalNote);
+        //note.copyValue("milliseconds.date", principalNote);
+        //note.copyValue("milliseconds.date.end", principalNote);
+        note.copyValue("velocity", principalNote);
+        //note.copyValue("detuneCents", principalNote);
+        //note.copyValue("detuneHz", principalNote);
+        //note.copyValue("ornament.dynamics", principalNote);
+        //note.copyValue("ornament.date.offset", principalNote);
     }
 
     /**
@@ -636,6 +647,7 @@ public class OrnamentationMap extends GenericMap {
         // Phase 2: group all entries implicitly by date – all ornaments on the same date
         // are distributed proportionally across the principal note's duration.
         // atEnd ornaments are anchored at the end of the note.
+        // TODO: not per date, but via principalNote ID, although it is processed per layer
         Map<Double, ArrayList<OrnamentEntry>> groups = new LinkedHashMap<>();
         for (OrnamentEntry entry : allEntries)
             groups.computeIfAbsent(entry.od.date, k -> new ArrayList<>()).add(entry);

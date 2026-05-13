@@ -62,7 +62,7 @@ public class MsmElement extends RichElement {
      * @return
      */
     public String createNewId() {
-        this.id = Helper.addUUID(this.element, true, false);
+        this.id = Helper.addUUID(this.element, true, true);
         return getId();
     }
 
