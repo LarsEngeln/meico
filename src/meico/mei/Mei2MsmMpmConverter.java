@@ -2831,15 +2831,15 @@ public class Mei2MsmMpmConverter {
         if (unitdurAttr != null) {
             int unitdur = Integer.parseInt(unitdurAttr);
             int dur = Integer.parseInt(notes.get(0).get("dur"));
-            repetitions = unitdur / dur;
+            repetitions = unitdur / dur - 1; // "- 1" as the note is played once regulary + "repetitions"
         }
         else if (numAttr != null) {
-            repetitions = Integer.parseInt(numAttr);
+            repetitions = Integer.parseInt(numAttr) - 1; // "- 1" as the note is played once regulary + "repetitions"
         }
         else if (stemModAttr != null) {
             int stemMod = Integer.parseInt(stemModAttr);
             int dur = Integer.parseInt(notes.get(0).get("dur"));
-            repetitions = stemMod / dur;
+            repetitions = stemMod / dur - 1; // "- 1" as the note is played once regulary + "repetitions"
         }
 
         // create ornament data
@@ -3028,6 +3028,7 @@ public class Mei2MsmMpmConverter {
     private void addMeiNoteToOrnamentData(MeiElement elem, OrnamentData od) {
         if (elem.getName().equals("barLine")) {
             od.noteOrder.add(getRptString(elem));
+            od.repetitions = -1; // if we have a barline, we got a repetitive moment, that is going to be guessed ("-1") while "perform"
             return;
         }
 
