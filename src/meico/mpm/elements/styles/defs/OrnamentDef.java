@@ -3,6 +3,9 @@ package meico.mpm.elements.styles.defs;
 import meico.mei.Helper;
 import meico.mpm.Mpm;
 import meico.mpm.elements.TemporalValue;
+import meico.msm.Msm;
+import meico.msm.MsmElement;
+import meico.xml.RichElement;
 import nu.xom.Attribute;
 import nu.xom.Element;
 
@@ -374,7 +377,7 @@ public class OrnamentDef extends AbstractDef {
          * @param chordSequence the sequence of the chords/notes in which the temporal spread is applied
          */
         public void apply(ArrayList<ArrayList<Element>> chordSequence) {
-            apply(chordSequence, null, null);
+            apply(chordSequence, null, null, null);
         }
 
         /**
@@ -384,8 +387,9 @@ public class OrnamentDef extends AbstractDef {
          * @param chordSequence the sequence of the chords/notes in which the temporal spread is applied
          * @param effectiveFrameStart if non-null, overrides the computed frame start (in ticks)
          * @param effectiveFrameLength if non-null, overrides the computed frame length (in ticks)
+         * @param lastNote of latest ornament in which we might render into
          */
-        public void apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength) {
+        public void apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmElement lastNote) {
             if (chordSequence.size() < 1)   // if there is no chord/note or just one
                 return;                     // we don't do anything
 
@@ -441,10 +445,35 @@ public class OrnamentDef extends AbstractDef {
             // process all chords/notes; spacing as if there were n+1 positions,
             // so each note has equal space and the last note still has room to sound until frameEnd
             ArrayList<Element> previous = null;
+            if(lastNote != null) {
+                previous = new ArrayList<>();
+                previous.add(lastNote.getElement());
+            }
+
             for (int i = 0; i < chordSequence.size(); ++i) {
+                boolean removedNote = false;
+                if(i == 0 && lastNote != null) {
+                    // check if we render into an existing note (occurs if another ornament is already applied)
+
+                    for(Element n : chordSequence.get(i)) {
+                        MsmElement note = new MsmElement(n);
+                        if(note.get("midi.pitch").equals(lastNote.get("midi.pitch"))) {
+                            note.removeParent();
+                            removedNote = true;
+                            // chordSequence.get(i).remove(note);
+                            previous = null;
+                        }
+                    }
+                }
                 double dateOffset = (Math.pow(((double) i) / chordSequence.size(), this.intensity) * length) + start;
                 previous = this.setOrnamentDateAtts(dateOffset, chordSequence.get(i), previous);
+                if(removedNote) { // expand note up to 2nd if 1st note has been removed
+                    previous = new ArrayList<>();
+                    previous.add(lastNote.getElement());
+                }
+                //previous = null;
             }
+            //previous = null;
         }
 
 

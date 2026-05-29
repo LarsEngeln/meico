@@ -301,14 +301,14 @@ public class MeiOrnamentExpander {
         boolean principalIsNote = principalNote.getName().equals("note");
         String dur = notes.values().iterator().next().get("dur");
 
-        if(!graceIsBefore.get() && principalIsNote) {
+        /*if(!graceIsBefore.get() && principalIsNote) {
             MeiElement graceNote = new MeiElement("note");
             graceNote.setId(graceNote.getId() + "_principal");
             graceNote.set("dur", dur);
             graceNote.set("oct", principalNote.get("oct"));
             graceNote.set("pname", principalNote.get("pname"));
             ornamentExpansion.addElement(graceNote);
-        }
+        }*/
 
         MeiElement halfStepsTo = principalNote;
         if(!principalIsNote) {
@@ -325,14 +325,14 @@ public class MeiOrnamentExpander {
             ornamentExpansion.addElement(note);
         }
 
-        if(graceIsBefore.get()) {
+        /*if(graceIsBefore.get()) {
             MeiElement graceNote = new MeiElement("note");
             graceNote.setId(graceNote.getId() + "_principal");
             graceNote.set("dur", dur);
             graceNote.set("oct", principalNote.get("oct"));
             graceNote.set("pname", principalNote.get("pname"));
             ornamentExpansion.addElement(graceNote);
-        }
+        }*/
 
         if(graceIsBefore.get())
             appendOrnamentExpansion(principalNote, ornamentExpansion, false);

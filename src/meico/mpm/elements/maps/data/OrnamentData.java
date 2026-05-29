@@ -2,6 +2,8 @@ package meico.mpm.elements.maps.data;
 
 import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
+import meico.msm.MsmElement;
+import meico.xml.RichElement;
 import nu.xom.Attribute;
 import nu.xom.Element;
 
@@ -101,7 +103,7 @@ public class OrnamentData {
      * @return sequence of chords/notes to be added to the chordSequence's underlying map or null
      */
     public ArrayList<ArrayList<Element>> apply(ArrayList<ArrayList<Element>> chordSequence) {
-        return apply(chordSequence, null, null);
+        return apply(chordSequence, null, null, null);
     }
 
     /**
@@ -111,9 +113,10 @@ public class OrnamentData {
      * @param chordSequence the sequence of the chords/notes in which the ornament is applied
      * @param effectiveFrameStart if non-null, overrides the ornamentDef's frameStart (in ticks)
      * @param effectiveFrameLength if non-null, overrides the ornamentDef's frameLength (in ticks)
+     * @param lastNote the last note of the previous chord sequence, used for temporal spread; if null, the temporal spread is applied as if there is no preceding note
      * @return sequence of chords/notes to be added to the chordSequence's underlying map or null
      */
-    public ArrayList<ArrayList<Element>> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength) {
+    public ArrayList<ArrayList<Element>> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmElement lastNote) {
         ArrayList<ArrayList<Element>> chordsToAdd = new ArrayList<>();                      // if new notes are added to the underlying map, these will be collected in this list and returned at the end
 
         if (this.ornamentDef == null)
@@ -129,7 +132,7 @@ public class OrnamentData {
             this.ornamentDef.getDynamicsGradient().apply(tempChordSequence, this.scale);
 
         if (this.ornamentDef.getTemporalSpread() != null)
-            this.ornamentDef.getTemporalSpread().apply(tempChordSequence, effectiveFrameStart, effectiveFrameLength);
+            this.ornamentDef.getTemporalSpread().apply(tempChordSequence, effectiveFrameStart, effectiveFrameLength, lastNote);
 
         return chordsToAdd;
     }
