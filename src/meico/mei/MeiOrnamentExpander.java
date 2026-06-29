@@ -239,22 +239,37 @@ public class MeiOrnamentExpander {
 
         //TODO: resolve note from chord/beam ?
 
-        if ((nextElement == null && previousElement == null) || (nextElement.getLocalName().equals("rest") && previousElement.getLocalName().equals("rest"))) {
+        if (nextElement == null && previousElement == null) {
             graceIsBefore.set(true);
             return null;
         }
-        if ((nextElement != null && previousElement == null) || (!nextElement.getLocalName().equals("rest") && previousElement.getLocalName().equals("rest"))) {
+        if (nextElement != null && previousElement == null) {
             principalNote = new MeiElement(nextElement);
             graceIsBefore.set(true);
             return principalNote;
         }
-        if ((previousElement != null && nextElement == null) || (!previousElement.getLocalName().equals("rest") && nextElement.getLocalName().equals("rest"))) {
+        if (previousElement != null && nextElement == null) {
             principalNote = new MeiElement(previousElement);
             graceIsBefore.set(false);
             return principalNote;
         }
 
         // if both != null
+        if (nextElement.getLocalName().equals("rest") && previousElement.getLocalName().equals("rest")) {
+            graceIsBefore.set(true);
+            return null;
+        }
+        if (!nextElement.getLocalName().equals("rest") && previousElement.getLocalName().equals("rest")) {
+            principalNote = new MeiElement(nextElement);
+            graceIsBefore.set(true);
+            return principalNote;
+        }
+        if (!previousElement.getLocalName().equals("rest") && nextElement.getLocalName().equals("rest")) {
+            principalNote = new MeiElement(previousElement);
+            graceIsBefore.set(false);
+            return principalNote;
+        }
+
         String graceType = element.getAttributeValue("grace");
         if(graceType == null)
             graceType = "";
