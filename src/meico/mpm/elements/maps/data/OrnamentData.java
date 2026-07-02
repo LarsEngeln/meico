@@ -3,7 +3,6 @@ package meico.mpm.elements.maps.data;
 import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
 import meico.msm.MsmElement;
-import meico.xml.RichElement;
 import nu.xom.Attribute;
 import nu.xom.Element;
 
@@ -23,6 +22,7 @@ public class OrnamentData {
     public String ornamentDefName = null;
     public OrnamentDef ornamentDef = null;
 
+    public String correspondence = null;
     public double date = 0.0;                       // the date for which the data is assembled
     public double scale = 0.0;
     public ArrayList<String> noteOrder = null;
@@ -43,6 +43,10 @@ public class OrnamentData {
 
         this.date = Double.parseDouble(xml.getAttribute("date").getValue());
         this.ornamentDefName = xml.getAttribute("name.ref").getValue();
+
+        Attribute corresp = xml.getAttribute("correspondence");
+        if(corresp != null)
+            this.correspondence = corresp.getValue();
 
         Attribute scale = xml.getAttribute("scale");
         if (scale != null)
@@ -75,6 +79,7 @@ public class OrnamentData {
         OrnamentData clone = new OrnamentData();
         clone.xml = (this.xml == null) ? null : this.xml.copy();
         clone.xmlId = this.xmlId;
+        clone.correspondence = this.correspondence;
         clone.styleName = this.styleName;
         clone.style = this.style;
         clone.ornamentDefName = this.ornamentDefName;

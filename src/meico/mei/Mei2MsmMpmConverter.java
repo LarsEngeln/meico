@@ -2982,7 +2982,8 @@ public class Mei2MsmMpmConverter {
                 String segLabel = segmentLabels.get(s);
 
                 OrnamentData od = new OrnamentData();
-                od.xmlId = elementId;
+                od.xmlId = Helper.addUUID(null);
+                od.correspondence = elementId;
                 od.date = (Double) timingData.get(0);
                 od.ornamentDefName = segLabel;
                 od.scale = 0.0;

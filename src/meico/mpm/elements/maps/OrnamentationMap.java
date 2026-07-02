@@ -99,7 +99,7 @@ public class OrnamentationMap extends GenericMap {
      * @param id set this null or leave it empty to omit it from the xml code
      * @return the index at which the element has been added
      */
-    public int addOrnament(double date, String nameRef, double scale, ArrayList<String> noteOrder, ArrayList<Element> childNotes, int repetitions, String id) {
+    public int addOrnament(double date, String nameRef, double scale, ArrayList<String> noteOrder, ArrayList<Element> childNotes, int repetitions, String id, String correspondence) {
         Element ornament = new Element("ornament", Mpm.MPM_NAMESPACE);
         ornament.addAttribute(new Attribute("date", Double.toString(date)));
         ornament.addAttribute(new Attribute("name.ref", nameRef));
@@ -131,6 +131,9 @@ public class OrnamentationMap extends GenericMap {
         if ((id != null) && !id.isEmpty())
             ornament.addAttribute(new Attribute("xml:id", "http://www.w3.org/XML/1998/namespace", id));
 
+        if ((correspondence != null) && !correspondence.isEmpty())
+            ornament.addAttribute(new Attribute("correspondence", correspondence));
+
         KeyValue<Double, Element> kv = new KeyValue<>(date, ornament);
         return this.insertElement(kv, false);
     }
@@ -142,7 +145,7 @@ public class OrnamentationMap extends GenericMap {
      * @return the index at which the element has been added
      */
     public int addOrnament(double date, String nameRef) {
-        return this.addOrnament(date, nameRef, 1.0, null, null, 0, null);
+        return this.addOrnament(date, nameRef, 1.0, null, null, 0, null, null);
     }
 
     /**
@@ -157,7 +160,7 @@ public class OrnamentationMap extends GenericMap {
             System.err.println("Cannot add ornament: ornamentDef or ornamentDefName must be specified.");
             return -1;
         }
-        return this.addOrnament(data.date, data.ornamentDefName, data.scale, data.noteOrder, data.notes, data.repetitions, data.xmlId);
+        return this.addOrnament(data.date, data.ornamentDefName, data.scale, data.noteOrder, data.notes, data.repetitions, data.xmlId, data.correspondence);
     }
 
     /**
@@ -318,7 +321,7 @@ public class OrnamentationMap extends GenericMap {
             for(KeyValue<Double, Element> dateElement : notes) {  // find the note
                 MsmElement note = new MsmElement(dateElement.getValue());
 
-                if (note.getId().equals(ornament.getId())) {
+                if (note.getId().equals(ornament.get("correspondence"))) {
                     principalNote = note;
 
                     break;
