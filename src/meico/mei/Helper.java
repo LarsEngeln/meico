@@ -572,7 +572,8 @@ public class Helper {
         Attribute a = new Attribute("id", uuid);                            // create an attribute
         if(addNamespace)
             a.setNamespace("xml", "http://www.w3.org/XML/1998/namespace");      // set its namespace to xml
-        toThis.addAttribute(a);                                             // add attribute to the element
+        if(toThis != null)
+            toThis.addAttribute(a);                                             // add attribute to the element
         return uuid;
     }
 
