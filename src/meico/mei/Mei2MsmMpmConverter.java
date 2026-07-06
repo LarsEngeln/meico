@@ -2122,7 +2122,8 @@ public class Mei2MsmMpmConverter {
 
         // read the xml:id
         Attribute id = Helper.getAttribute("id", arpeg);
-        od.xmlId = (id == null) ? null : id.getValue();
+        od.xmlId = Helper.addUUID(null);
+        od.correspondence = (id == null) ? null : id.getValue();;
 
         // determine the note order
         int needsPostprocessing = 0;                                        // this will be set 1, if the note.order must be reordered with ascending pitch, and -1 for descending pitch
@@ -2844,7 +2845,8 @@ public class Mei2MsmMpmConverter {
 
         // create ornament data
         OrnamentData od = new OrnamentData();
-        od.xmlId = notes.get(0).getId();
+        od.xmlId = Helper.addUUID(null);
+        od.correspondence = notes.get(0).getId();
         od.date = (Double) timingData.get(0);
         od.ornamentDefName = "tremolo";
         od.scale = 0.0;
@@ -3000,7 +3002,8 @@ public class Mei2MsmMpmConverter {
         else {
             // single ornament or non-instruction: create one OrnamentData as before
             OrnamentData od = new OrnamentData();
-            od.xmlId = elementId;
+            od.xmlId = Helper.addUUID(null);
+            od.correspondence = elementId;
             od.date = (Double) timingData.get(0);
             od.ornamentDefName = ornamentName;
             od.scale = 0.0;
