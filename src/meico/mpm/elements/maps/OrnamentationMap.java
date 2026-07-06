@@ -210,6 +210,8 @@ public class OrnamentationMap extends GenericMap {
             od.date = this.elements.get(index).getKey();
             od.xml = xml;
 
+            od.correspondence = Helper.getAttributeValue("correspondence", xml);
+
             Attribute noteOrderAtt = xml.getAttribute("note.order");
             if (noteOrderAtt != null) {
                 String no = noteOrderAtt.getValue().trim();
@@ -559,7 +561,7 @@ public class OrnamentationMap extends GenericMap {
             if ((style == null) || !ornamentXml.getLocalName().equals("ornament"))
                 continue;
 
-            OrnamentData od = new OrnamentData();
+            OrnamentData od = new OrnamentData(this.elements.get(i).getValue());
             od.style = style;
 
             Attribute OrnamentDefAtt = Helper.getAttribute("name.ref", ornamentXml);
@@ -570,12 +572,11 @@ public class OrnamentationMap extends GenericMap {
             if (od.ornamentDef == null)
                 continue;
 
-            od.date = this.elements.get(i).getKey();
+            //od.date = this.elements.get(i).getKey();
 
-            Attribute scaleAtt = Helper.getAttribute("scale", ornamentXml);
-            if (scaleAtt != null)
-                od.scale = Double.parseDouble(scaleAtt.getValue());
-
+            //Attribute scaleAtt = Helper.getAttribute("scale", ornamentXml);
+            //if (scaleAtt != null)
+            //    od.scale = Double.parseDouble(scaleAtt.getValue());
 
             // determine the chord sequence
             int noteOrderAscending = 1;
@@ -655,9 +656,9 @@ public class OrnamentationMap extends GenericMap {
         // are distributed proportionally across the principal note's duration.
         // atEnd ornaments are anchored at the end of the note.
         // TODO: not per date, but via principalNote ID, although it is processed per layer
-        Map<Double, ArrayList<OrnamentEntry>> groups = new LinkedHashMap<>();
+        Map<String, ArrayList<OrnamentEntry>> groups = new LinkedHashMap<>();
         for (OrnamentEntry entry : allEntries)
-            groups.computeIfAbsent(entry.od.date, k -> new ArrayList<>()).add(entry);
+            groups.computeIfAbsent(entry.od.correspondence, k -> new ArrayList<>()).add(entry);
 
 
         MsmElement lastNote = null; // where we might render into
