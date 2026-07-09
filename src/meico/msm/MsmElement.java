@@ -67,6 +67,15 @@ public class MsmElement extends RichElement {
     }
 
     /**
+     * returns the date
+     * @return
+     */
+    public Double getDate() {
+        return getAsDouble("date");
+    }
+
+
+    /**
      * returns the pitchname
      * @return
      */
