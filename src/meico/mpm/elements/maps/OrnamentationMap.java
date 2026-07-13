@@ -302,7 +302,7 @@ public class OrnamentationMap extends GenericMap {
 
         this.renderAllNonmillisecondsModifiersToMap(map);   // render ornamentation modifier attributes into .perf and velocity attributes
 
-        this.sanitizeOverlaps(map);
+        //this.sanitizeOverlaps(map);
     }
 
     /**
@@ -319,23 +319,16 @@ public class OrnamentationMap extends GenericMap {
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
             MsmElement ornament = new MsmElement(this.getElement(i));
-            MsmElement principalNote = null;
-            for(KeyValue<Double, Element> dateElement : notes) {  // find the note
-                MsmElement note = new MsmElement(dateElement.getValue());
+            String correspondenceId = ornament.get("correspondence");
+            MsmElement principalNote = getElementById(notes, correspondenceId);
 
-                if (note.getId().equals(ornament.get("correspondence"))) {
-                    principalNote = note;
-
-                    break;
-                }
+            if(principalNote == null) {
+                if(ornament.has("note.order")) // in case of an arpeggio, i.e.
+                    ornament.set("note.order.perf", ornament.get("note.order"));
+                continue;
             }
 
-            if(principalNote == null)
-                continue;
-
-            ornament.set("principalNote", principalNote.getId());
-
-            if (!alreadyRemovedIds.contains(principalNote.getId())) {
+            if (!alreadyRemovedIds.contains(correspondenceId)) {
                 // toBeRemoved.add(principalNote.getElement());
                 // alreadyRemovedIds.add(principalNote.getId());
             }
@@ -489,6 +482,24 @@ public class OrnamentationMap extends GenericMap {
     }
 
     /**
+     * returns the element with id from givin elements.
+     * @param elements
+     * @param id
+     * @return possibly null if not found
+     */
+    private static MsmElement getElementById(ArrayList<KeyValue<Double, Element>> elements, String id) {
+        MsmElement result = null;
+        for(KeyValue<Double, Element> dateElement : elements) {  // find the element
+            MsmElement candidate = new MsmElement(dateElement.getValue());
+            if (candidate.getId().equals(id)) {
+                result = candidate;
+                break;
+            }
+        }
+        return result;
+    }
+
+    /**
      * copy the performance attributes of the original note to the ornament note.
      * @param note
      * @param principalNote
@@ -579,69 +590,60 @@ public class OrnamentationMap extends GenericMap {
             //    od.scale = Double.parseDouble(scaleAtt.getValue());
 
             // determine the chord sequence
-            int noteOrderAscending = 1;
-            ArrayList<ArrayList<Element>> chordSequence = null;
+            int noteOrderAscending = 0;
+            ArrayList<ArrayList<Element>> chordSequence = new ArrayList<>();
             Attribute noteOrderAtt = ornamentXml.getAttribute("note.order.perf");
             if (noteOrderAtt != null) {
                 String no = noteOrderAtt.getValue().trim();
                 switch (no) {
                     case "ascending pitch":
+                        noteOrderAscending = 1;
                         break;
                     case "descending pitch":
                         noteOrderAscending = -1;
                         break;
-                    default:
-                        od.noteOrder = new ArrayList<>(Arrays.asList(no.replaceAll("#", "").split("\\s+")));
-                        if (od.noteOrder.isEmpty())
-                            continue;
-                        chordSequence = new ArrayList<>();
-                        noteOrderAscending = 0;
-
-                        ArrayList<Element> chord = new ArrayList<>();
-                        boolean isCollectingChord = false;
-                        for (String ref : od.noteOrder) {
-                            if(!isCollectingChord)
-                                chord = new ArrayList<>();
-
-                            if(ref.equals("[")) {
-                                isCollectingChord = true;
-                                continue;
-                            }
-                            if(ref.equals("]")) {
-                                isCollectingChord = false;
-                                if(!chord.isEmpty()) {
-                                    chordSequence.add(chord);
-                                }
-                                continue;
-                            }
-
-                            Element note = notes.get(ref);
-                            if (note != null) {
-                                chord.add(note);
-                            }
-
-                            if(!isCollectingChord && !chord.isEmpty()) {
-                                chordSequence.add(chord);
-                            }
-                        }
                 }
-            }
-            if (chordSequence == null) {
-                chordSequence = new ArrayList<>();
-                for (GenericMap map : maps) {
-                    ArrayList<KeyValue<Double, Element>> notesAtDate = map.getAllElementsAt(od.date);
-                    for (KeyValue<Double, Element> note : notesAtDate) {
-                        if (note.getValue().getLocalName().equals("note")) {
-                            ArrayList<Element> chord2 = new ArrayList<>();
-                            chord2.add(note.getValue());
-                            chordSequence.add(chord2);
-                        }
-                    }
-                }
-                if (chordSequence.isEmpty())
+
+                od.noteOrder = new ArrayList<>(Arrays.asList(no.replaceAll("#", "").split("\\s+")));
+                if (od.noteOrder.isEmpty())
                     continue;
 
-                int finalNoteOrderAscending = noteOrderAscending;
+                noteOrderAscending = 0;
+
+                ArrayList<Element> chord = new ArrayList<>();
+                boolean isCollectingChord = false;
+                for (String ref : od.noteOrder) {
+                    if(!isCollectingChord)
+                        chord = new ArrayList<>();
+
+                    if(ref.equals("[")) {
+                        isCollectingChord = true;
+                        continue;
+                    }
+                    if(ref.equals("]")) {
+                        isCollectingChord = false;
+                        if(!chord.isEmpty()) {
+                            chordSequence.add(chord);
+                        }
+                        continue;
+                    }
+
+                    Element note = notes.get(ref);
+                    if (note != null) {
+                        chord.add(note);
+                    }
+
+                    if(!isCollectingChord && !chord.isEmpty()) {
+                        chordSequence.add(chord);
+                    }
+                }
+            }
+
+            if (chordSequence.isEmpty())
+                continue;
+
+            int finalNoteOrderAscending = noteOrderAscending;
+            if(finalNoteOrderAscending != 0) {
                 chordSequence.sort((n1, n2) -> {
                     double pitch1 = Double.parseDouble(Helper.getAttributeValue("midi.pitch", n1.get(0)));
                     double pitch2 = Double.parseDouble(Helper.getAttributeValue("midi.pitch", n2.get(0)));
@@ -663,17 +665,43 @@ public class OrnamentationMap extends GenericMap {
 
         MsmElement lastNote = null; // where we might render into
         // For each group: compute proportional distribution and apply
-        for (ArrayList<OrnamentEntry> group : groups.values()) {
+        for (Map.Entry<String, ArrayList<OrnamentEntry>> groupEntry : groups.entrySet()) {
+            ArrayList<OrnamentEntry> group = groupEntry.getValue();
+            String correspondenceId = groupEntry.getKey();
+
+            MsmElement principalNote = null;
+            if(notes.containsKey(correspondenceId)) {
+                principalNote = new MsmElement(notes.get(correspondenceId));
+            }
+
             if (group.isEmpty())
                 continue;
 
             // determine the principal note duration in ticks from the first chord of the first entry
+            //double principalDuration = principalNote.getDuration();
             double principalDuration = getPrincipalDuration(group.get(0).chordSequence);
+            if(principalNote != null) {
+                principalDuration = principalNote.getDuration();
+                if(principalNote.has("ornament.duration")) {
+                    principalDuration = principalNote.getAsDouble("ornament.duration");
+                }
+            }
 
             // separate into "front" (not atEnd) and "end" (atEnd) ornaments, preserving order
             ArrayList<OrnamentEntry> frontOrnaments = new ArrayList<>();
             ArrayList<OrnamentEntry> endOrnaments = new ArrayList<>();
             for (OrnamentEntry entry : group) {
+                if(principalNote != null && principalNote.has("ornament.date.offset")) {
+                    entry.od.date = principalNote.getAsDouble("date.perf") + principalNote.getAsDouble("ornament.date.offset");
+                    new MsmElement(entry.od.xml).set("date.perf", entry.od.date);
+                    new MsmElement(entry.od.xml).set("date", entry.od.date);
+
+                    for(ArrayList<Element> chord : entry.chordSequence) {
+                        for(Element note : chord)
+                            new MsmElement(note).set("date.perf", entry.od.date);
+                    }
+                }
+
                 if (isAtEnd(entry.od))
                     endOrnaments.add(entry);
                 else
@@ -684,12 +712,7 @@ public class OrnamentationMap extends GenericMap {
             double totalRawLength = 0.0;
             ArrayList<Double> rawLengths = new ArrayList<>();
             ArrayList<Double> rawStarts = new ArrayList<>();
-            for (OrnamentEntry entry : group) {
-                double[] resolved = resolveFrameValues(entry.od, principalDuration);
-                rawLengths.add(resolved[1]);
-                rawStarts.add(resolved[0]);
-                totalRawLength += resolved[1];
-            }
+            totalRawLength = getTotalRawLength(group, principalDuration, rawLengths, rawStarts);
 
             // proportional scaling if total exceeds principal note duration
             double scaleFactor = (totalRawLength > principalDuration && totalRawLength > 0.0)
@@ -702,28 +725,150 @@ public class OrnamentationMap extends GenericMap {
                 int idx = group.indexOf(entry);
                 double effectiveLength = rawLengths.get(idx) * scaleFactor;
                 double effectiveStart = cursor + rawStarts.get(idx);
-                for (ArrayList<Element> chord : entry.od.apply(entry.chordSequence, effectiveStart, effectiveLength, lastNote))
-                    for (Element note : chord)
-                        maps.get(0).addElement(note);
-                cursor += effectiveLength;
-                lastNote = new MsmElement(entry.chordSequence.get(entry.chordSequence.size()-1).get(entry.chordSequence.get(entry.chordSequence.size()-1).size()-1)); // the last (might be the "highest") note of the last chord is where we might render into for the next ornament
+                KeyValue<Double, Double> entryResult = entry.od.apply(entry.chordSequence, effectiveStart, effectiveLength, lastNote);
+                entry.effectiveStart = entryResult.getKey() + entry.od.date;
+                entry.effectiveLength = entryResult.getValue();
+                entry.effectiveEnd = entry.effectiveStart + entry.effectiveLength;
+
+                cursor = entryResult.getKey() + entryResult.getValue();
+                //entry.calcEffectives();
+                lastNote = entry.getLatestNote();
             }
 
-            // apply end ornaments from the end backwards
-            double endCursor = principalDuration;
+            double neededSpace = 0.0f;
             for (int i = endOrnaments.size() - 1; i >= 0; i--) {
                 OrnamentEntry entry = endOrnaments.get(i);
                 int idx = group.indexOf(entry);
                 double effectiveLength = rawLengths.get(idx) * scaleFactor;
-                double effectiveStart = endCursor - effectiveLength + rawStarts.get(idx);
-                for (ArrayList<Element> chord : entry.od.apply(entry.chordSequence, effectiveStart, effectiveLength, lastNote))
-                    for (Element note : chord)
-                        maps.get(0).addElement(note);
-                endCursor -= effectiveLength;
-                lastNote = new MsmElement(entry.chordSequence.get(entry.chordSequence.size()-1).get(entry.chordSequence.get(entry.chordSequence.size()-1).size()-1)); // the last (might be the "highest") note of the last chord is where we might render into for the next ornament
+                neededSpace += effectiveLength;
+            }
+
+            neededSpace = getTotalRawLength(endOrnaments, principalDuration, new ArrayList<>(), new ArrayList<>());
+
+            cursor = Math.max(cursor, principalDuration - neededSpace);
+
+            // apply end ornaments from the end backwards
+            double endCursor = principalDuration;
+            //for (int i = endOrnaments.size() - 1; i >= 0; i--) {
+            // OrnamentEntry entry = endOrnaments.get(i);
+            for (OrnamentEntry entry : endOrnaments) {
+                int idx = group.indexOf(entry);
+                double effectiveLength = rawLengths.get(idx) * scaleFactor;
+                //double effectiveStart = endCursor - effectiveLength + rawStarts.get(idx);
+                double effectiveStart = cursor + rawStarts.get(idx);
+                KeyValue<Double, Double> entryResult = entry.od.apply(entry.chordSequence, effectiveStart, effectiveLength, lastNote);
+                entry.effectiveStart = entryResult.getKey() + entry.od.date;
+                entry.effectiveLength = entryResult.getValue();
+                entry.effectiveEnd = entry.effectiveStart + entry.effectiveLength;
+
+                //endCursor = entryResult.keySet().iterator().next();
+                cursor = entryResult.getKey() + entryResult.getValue();
+                //entry.calcEffectives();
+                lastNote = entry.getLatestNote();
             }
             lastNote = null;
+
+            // Cut the principal note: carve the ornament time frame(s) out of the principal
+            // note's sounding duration so that ornament notes and principal note do not overlap.
+            //
+            // For each fragment we silence the original element and re-insert a new "split note"
+            // that covers only the ornament-free window [cursor, endCursor).
+            if (principalNote != null && (cursor >= 0.0 || endCursor < principalDuration)) {
+                double principalStart = principalNote.getDate();
+                if(principalNote.has("ornament.date.offset"))
+                    principalStart += principalNote.getAsDouble("ornament.date.offset");
+                double principalEnd  = principalStart + principalDuration;
+
+                Map<Double, Double> principalLeftovers = new LinkedHashMap<>();
+                double lastEnd = Double.MAX_VALUE;
+                int ornamentEntryIndex = 0;
+                for(OrnamentEntry entry : group) {
+                    if (ornamentEntryIndex == 0 && principalStart < entry.effectiveStart) {
+                        principalLeftovers.put(principalStart, entry.effectiveStart);
+                    }
+                    ornamentEntryIndex++;
+
+                    if(entry.effectiveStart <= lastEnd) {
+                        lastEnd = entry.effectiveEnd;
+                        continue;
+                    }
+                    else {
+                        principalLeftovers.put(lastEnd, entry.effectiveStart);
+                    }
+
+                    lastEnd = entry.effectiveEnd;
+                }
+                if(lastEnd < principalEnd)
+                    principalLeftovers.put(lastEnd, principalEnd);
+
+                GenericMap map = null;
+                for(GenericMap m : maps)
+                    if(m.contains(principalNote.getElement()))
+                        map = m;
+                if(map == null)
+                    continue;
+
+                // remove principal
+                map.removeElement(principalNote.getId());
+
+                //(re-)add all "leftovers"
+                int leftoverIndex = 0;
+                for(Map.Entry<Double, Double> leftover : principalLeftovers.entrySet()) {
+                    MsmElement extendThis = null;
+                    for(OrnamentEntry entry : group) {
+                        ArrayList<Element> lastChord = entry.chordSequence.get(entry.chordSequence.size()-1);
+                        for(Element element : lastChord) {
+                            MsmElement note = new MsmElement(element);
+                            double noteEnd = note.getAsDouble("date.perf") + note.getAsDouble("ornament.date.offset") + note.getAsDouble("ornament.duration");
+                            if(note.get("midi.pitch").equals(principalNote.get("midi.pitch")) && noteEnd == leftover.getKey()) {
+                                extendThis = note;
+                                break;
+                            }
+                            // search here nachfolgendes ornam ob die erste note == der principl ist und extend plus set date
+                        }
+                    }
+                    if(extendThis != null) {
+                        extendThis.set("ornament.duration", String.valueOf(leftover.getValue() - leftover.getKey() + extendThis.getAsDouble("ornament.duration")));
+                        continue;
+                    }
+
+                    MsmElement note = new MsmElement(principalNote.getClonedElement());
+                    note.setId(note.getId() + "_split" + leftoverIndex++);
+                    note.set("date", leftover.getKey());
+                    note.set("duration", String.valueOf(leftover.getValue() - leftover.getKey()));
+                    note.set("date.perf", leftover.getKey());
+                    note.set("duration.perf", String.valueOf(leftover.getValue() - leftover.getKey()));
+                    map.addElement(note.getElement());
+                }
+            }
+
         }
+    }
+
+    /**
+     * returns the total raw length of all ornament entries of the group that is within the duration
+     * @param group
+     * @param duration
+     * @param rawLengths will be filled
+     * @param rawStarts will be filled
+     * @return
+     */
+    private static double getTotalRawLength(ArrayList<OrnamentEntry> group, double duration, ArrayList<Double> rawLengths, ArrayList<Double> rawStarts) {
+        double totalRawLength = 0.0f;
+        for (OrnamentEntry entry : group) {
+            double[] resolved = resolveFrameValues(entry.od, duration);
+            double len = resolved[1];
+            double start = resolved[0];
+            rawLengths.add(len);
+            rawStarts.add(start);
+            double lengthUsedWithinPrincipal = len;
+            if(start < 0)
+                lengthUsedWithinPrincipal = Math.max(0.0, len+start);
+            else if (start > 0)
+                lengthUsedWithinPrincipal = Math.min(start+len, start+duration);
+            totalRawLength += lengthUsedWithinPrincipal;
+        }
+        return totalRawLength;
     }
 
     /**
@@ -732,9 +877,48 @@ public class OrnamentationMap extends GenericMap {
     private static class OrnamentEntry {
         final OrnamentData od;
         final ArrayList<ArrayList<Element>> chordSequence;
+        double effectiveStart;
+        double effectiveLength;
+        double effectiveEnd;
         OrnamentEntry(OrnamentData od, ArrayList<ArrayList<Element>> chordSequence) {
             this.od = od;
             this.chordSequence = chordSequence;
+        }
+
+        private MsmElement getFirstNote () {
+            Element candidate = null;
+
+            double firstStartDate = Double.MAX_VALUE;
+            for(ArrayList<Element> chord : chordSequence) {
+                for(Element note : chord) {
+                    double startDate = Double.parseDouble(Helper.getAttributeValue("ornament.date.offset", note)) + Double.parseDouble(Helper.getAttributeValue("ornament.duration", note));
+                    if(startDate < firstStartDate) {
+                        firstStartDate = startDate;
+                        candidate = note;
+                    }
+                }
+            }
+            if(candidate == null)
+                return null;
+            return new MsmElement(candidate);
+        }
+
+        private MsmElement getLatestNote () {
+            Element candidate = null;
+
+            double latestEndDate = -Double.MAX_VALUE;
+            for(ArrayList<Element> chord : chordSequence) {
+                for(Element note : chord) {
+                    double endDate = Double.parseDouble(Helper.getAttributeValue("ornament.date.offset", note)) + Double.parseDouble(Helper.getAttributeValue("ornament.duration", note));
+                    if(endDate > latestEndDate) {
+                        latestEndDate = endDate;
+                        candidate = note;
+                    }
+                }
+            }
+            if(candidate == null)
+                return null;
+            return new MsmElement(candidate);
         }
     }
 
