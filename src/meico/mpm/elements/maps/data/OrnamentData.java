@@ -3,6 +3,7 @@ package meico.mpm.elements.maps.data;
 import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
 import meico.msm.MsmElement;
+import meico.supplementary.KeyValue;
 import nu.xom.Attribute;
 import nu.xom.Element;
 
@@ -105,9 +106,9 @@ public class OrnamentData {
      * also return new notes to be added to the chordSequence's underlying map.
      * If notes should be deleted from the performance, they are marked by an according attribute.
      * @param chordSequence the sequence of the chords/notes in which the ornament is applied
-     * @return sequence of chords/notes to be added to the chordSequence's underlying map or null
+     * @return computed spaced start and length (relative in ticks) or null
      */
-    public ArrayList<ArrayList<Element>> apply(ArrayList<ArrayList<Element>> chordSequence) {
+    public KeyValue<Double, Double> apply(ArrayList<ArrayList<Element>> chordSequence) {
         return apply(chordSequence, null, null, null);
     }
 
@@ -119,26 +120,21 @@ public class OrnamentData {
      * @param effectiveFrameStart if non-null, overrides the ornamentDef's frameStart (in ticks)
      * @param effectiveFrameLength if non-null, overrides the ornamentDef's frameLength (in ticks)
      * @param lastNote the last note of the previous chord sequence, used for temporal spread; if null, the temporal spread is applied as if there is no preceding note
-     * @return sequence of chords/notes to be added to the chordSequence's underlying map or null
+     * @return computed spaced start and length (relative in ticks) or null
      */
-    public ArrayList<ArrayList<Element>> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmElement lastNote) {
-        ArrayList<ArrayList<Element>> chordsToAdd = new ArrayList<>();                      // if new notes are added to the underlying map, these will be collected in this list and returned at the end
-
+    public KeyValue<Double, Double> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmElement lastNote) {
+        KeyValue<Double, Double> result = null;
         if (this.ornamentDef == null)
-            return chordsToAdd;
+            return result;
 
         ArrayList<ArrayList<Element>> tempChordSequence = new ArrayList<>(chordSequence);   // a note sequence to apply the further transformations
-
-        // TODO: if new notes are generated that might add to or replace the notes in the sequence,
-        //  do this here and forward this incl. the new notes to the dynamicsGradient via tempChordSequence;
-        //  in case of replacement, the notes to be deleted get a corresponding attribute and
 
         if (this.ornamentDef.getDynamicsGradient() != null)
             this.ornamentDef.getDynamicsGradient().apply(tempChordSequence, this.scale);
 
         if (this.ornamentDef.getTemporalSpread() != null)
-            this.ornamentDef.getTemporalSpread().apply(tempChordSequence, effectiveFrameStart, effectiveFrameLength, lastNote);
+            result = this.ornamentDef.getTemporalSpread().apply(tempChordSequence, effectiveFrameStart, effectiveFrameLength, lastNote);
 
-        return chordsToAdd;
+        return result;
     }
 }

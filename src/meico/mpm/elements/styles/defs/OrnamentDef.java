@@ -3,9 +3,8 @@ package meico.mpm.elements.styles.defs;
 import meico.mei.Helper;
 import meico.mpm.Mpm;
 import meico.mpm.elements.TemporalValue;
-import meico.msm.Msm;
 import meico.msm.MsmElement;
-import meico.xml.RichElement;
+import meico.supplementary.KeyValue;
 import nu.xom.Attribute;
 import nu.xom.Element;
 
@@ -388,10 +387,11 @@ public class OrnamentDef extends AbstractDef {
          * @param effectiveFrameStart if non-null, overrides the computed frame start (in ticks)
          * @param effectiveFrameLength if non-null, overrides the computed frame length (in ticks)
          * @param lastNote of latest ornament in which we might render into
+         * @return computed spaced start and length (relative in ticks) or null
          */
-        public void apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmElement lastNote) {
+        public KeyValue<Double, Double> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmElement lastNote) {
             if (chordSequence.size() < 1)   // if there is no chord/note or just one
-                return;                     // we don't do anything
+                return null;     // we don't do anything
 
             double length = this.frameLength.getValue();
             double start  = this.frameStart.getValue();
@@ -422,6 +422,9 @@ public class OrnamentDef extends AbstractDef {
             if (effectiveFrameLength != null)
                 length = effectiveFrameLength;
 
+            double spacedStart = start;
+            double spacedLength = length;
+
             // if atEnd, place the frame at the end of the principal note's duration;
             // frameStart is treated as an offset, so atEnd with frameStart=0
             // means the ornament ends exactly at the note's end
@@ -442,13 +445,17 @@ public class OrnamentDef extends AbstractDef {
                     start = principalDuration - length + start;
             }
 
+            double lastDateOffset = spacedStart;
+
             // process all chords/notes; spacing as if there were n+1 positions,
             // so each note has equal space and the last note still has room to sound until frameEnd
             ArrayList<Element> previous = null;
             if(lastNote != null) {
                 previous = new ArrayList<>();
                 previous.add(lastNote.getElement());
+                lastDateOffset = lastNote.getAsDouble("ornament.date.offset");
             }
+
 
             for (int i = 0; i < chordSequence.size(); ++i) {
                 boolean removedNote = false;
@@ -461,19 +468,35 @@ public class OrnamentDef extends AbstractDef {
                             note.removeParent();
                             removedNote = true;
                             // chordSequence.get(i).remove(note);
-                            previous = null;
+                            //previous = null;
+                            lastDateOffset = lastNote.getAsDouble("ornament.date.offset");
                         }
                     }
                 }
                 double dateOffset = (Math.pow(((double) i) / chordSequence.size(), this.intensity) * length) + start;
-                previous = this.setOrnamentDateAtts(dateOffset, chordSequence.get(i), previous);
+                double lastDuration = dateOffset - lastDateOffset;
+                lastDateOffset = dateOffset;
+
+                if(i == 0) {
+                    spacedStart = dateOffset;
+                }
+
+                previous = this.setOrnamentDateAtts(dateOffset, lastDuration, chordSequence.get(i), previous);
                 if(removedNote) { // expand note up to 2nd if 1st note has been removed
                     previous = new ArrayList<>();
                     previous.add(lastNote.getElement());
+                    lastDateOffset = lastNote.getAsDouble("ornament.date.offset");
                 }
                 //previous = null;
             }
             //previous = null;
+
+            double lastDuration = spacedStart + spacedLength - lastDateOffset;
+
+            this.setOrnamentDateAtts(lastDateOffset, lastDuration, new ArrayList<Element>(), previous);
+
+            KeyValue<Double, Double> result = new KeyValue<>(spacedStart, spacedLength);
+            return result;
         }
 
 
@@ -487,7 +510,7 @@ public class OrnamentDef extends AbstractDef {
          * @param previous the previous chord, so we can treat its duration according to the chords offset, or null
          * @return the chord, if its duration needs treatment along the processing of the next chord (then as previous); otherwise null
          */
-        private ArrayList<Element> setOrnamentDateAtts(double dateOffset, ArrayList<Element> chord, ArrayList<Element> previous) {
+        private ArrayList<Element> setOrnamentDateAtts(double dateOffset, double duration, ArrayList<Element> chord, ArrayList<Element> previous) {
             String dateAttName, durAttName;
             switch (this.frameStart.getDomain()) {
                 case Ticks:
@@ -510,6 +533,17 @@ public class OrnamentDef extends AbstractDef {
                     ornamentDateAtt.setValue(String.valueOf(dateOffset + Double.parseDouble(ornamentDateAtt.getValue())));
                 } else
                     note.addAttribute(new Attribute(dateAttName, String.valueOf(dateOffset)));
+
+
+                Attribute durationAtt = Helper.getAttribute("duration", note);
+                if(durationAtt == null)
+                    continue;
+                Attribute ornamentDurAtt = Helper.getAttribute(durAttName, note);
+                if (ornamentDurAtt != null) {
+                    ornamentDurAtt.setValue(Helper.getAttributeValue("duration", note));
+                } else
+                    note.addAttribute(new Attribute(durAttName, Helper.getAttributeValue("duration", note)));
+
             }
 
             // handle the ornament[.*].duration
@@ -528,9 +562,9 @@ public class OrnamentDef extends AbstractDef {
                                 continue;
                             Attribute ornamentDurationAtt = Helper.getAttribute(durAttName, prev);
                             if (ornamentDurationAtt != null)
-                                ornamentDurationAtt.setValue(String.valueOf(dateOffset - Double.parseDouble(prevDateOffsetAtt.getValue())));
+                                ornamentDurationAtt.setValue(String.valueOf(duration));
                             else
-                                prev.addAttribute(new Attribute(durAttName, String.valueOf(dateOffset - Double.parseDouble(prevDateOffsetAtt.getValue()))));
+                                prev.addAttribute(new Attribute(durAttName, String.valueOf(duration)));
                         }
                     }
                     return chord;
