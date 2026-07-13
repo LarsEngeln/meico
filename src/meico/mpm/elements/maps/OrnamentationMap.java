@@ -678,7 +678,6 @@ public class OrnamentationMap extends GenericMap {
                 continue;
 
             // determine the principal note duration in ticks from the first chord of the first entry
-            //double principalDuration = principalNote.getDuration();
             double principalDuration = getPrincipalDuration(group.get(0).chordSequence);
             if(principalNote != null) {
                 principalDuration = principalNote.getDuration();
@@ -749,21 +748,16 @@ public class OrnamentationMap extends GenericMap {
 
             // apply end ornaments from the end backwards
             double endCursor = principalDuration;
-            //for (int i = endOrnaments.size() - 1; i >= 0; i--) {
-            // OrnamentEntry entry = endOrnaments.get(i);
             for (OrnamentEntry entry : endOrnaments) {
                 int idx = group.indexOf(entry);
                 double effectiveLength = rawLengths.get(idx) * scaleFactor;
-                //double effectiveStart = endCursor - effectiveLength + rawStarts.get(idx);
                 double effectiveStart = cursor + rawStarts.get(idx);
                 KeyValue<Double, Double> entryResult = entry.od.apply(entry.chordSequence, effectiveStart, effectiveLength, lastNote);
                 entry.effectiveStart = entryResult.getKey() + entry.od.date;
                 entry.effectiveLength = entryResult.getValue();
                 entry.effectiveEnd = entry.effectiveStart + entry.effectiveLength;
 
-                //endCursor = entryResult.keySet().iterator().next();
                 cursor = entryResult.getKey() + entryResult.getValue();
-                //entry.calcEffectives();
                 lastNote = entry.getLatestNote();
             }
             lastNote = null;
@@ -824,7 +818,7 @@ public class OrnamentationMap extends GenericMap {
                                 extendThis = note;
                                 break;
                             }
-                            // search here nachfolgendes ornam ob die erste note == der principl ist und extend plus set date
+                            // TODO: (?) search here following ornam to check if first note == principleNote -> extend/set date
                         }
                     }
                     if(extendThis != null) {
@@ -1073,7 +1067,7 @@ public class OrnamentationMap extends GenericMap {
                 if (ornamentNoteoffShiftAtt != null) {                                                                  // this attribute is only created when its value is "true", so we need to update milliseconds.date.end.perf; thus, the duration stays the same
                     if (millisecondsDateEndAtt != null)
                         millisecondsDateEndAtt.setValue(String.valueOf(Double.parseDouble(millisecondsDateEndAtt.getValue()) + ornamentMillisecondsDateOffset)); // update the end date of the note
-                } // else, ornament.noteOff.shift="false", so milliseconds.date.end remains unalteres
+                } // else, ornament.noteOff.shift="false", so milliseconds.date.end remains unaltered
             }
         }
     }
