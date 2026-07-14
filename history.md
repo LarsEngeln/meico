@@ -1,6 +1,11 @@
 ### Version History
 
 
+#### v0.11.14
+- Enhancement of method `meico.mei.Mei2MsmMpmConverter.indexNotesAndChords()`. It will now exclude grace notes.
+- Added an early break condition to method `meico.mei.Mei2MsmMpmConverter.processSlur()`, so it does not process slurs that start or end at grace notes.
+
+
 #### v0.11.13
 - Expanded handling of MEI elements `oStaff` and `oLayer`. Element `ossia` will now be processed.
 - Bugfix in method `meico.mpm.elements.styles.GenericStyle.equals()`.
