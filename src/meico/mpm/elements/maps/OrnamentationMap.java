@@ -583,12 +583,6 @@ public class OrnamentationMap extends GenericMap {
             if (od.ornamentDef == null)
                 continue;
 
-            //od.date = this.elements.get(i).getKey();
-
-            //Attribute scaleAtt = Helper.getAttribute("scale", ornamentXml);
-            //if (scaleAtt != null)
-            //    od.scale = Double.parseDouble(scaleAtt.getValue());
-
             // determine the chord sequence
             int noteOrderAscending = 0;
             ArrayList<ArrayList<Element>> chordSequence = new ArrayList<>();
@@ -659,8 +653,9 @@ public class OrnamentationMap extends GenericMap {
         // atEnd ornaments are anchored at the end of the note.
         // TODO: not per date, but via principalNote ID, although it is processed per layer
         Map<String, ArrayList<OrnamentEntry>> groups = new LinkedHashMap<>();
-        for (OrnamentEntry entry : allEntries)
+        for (OrnamentEntry entry : allEntries) {
             groups.computeIfAbsent(entry.od.correspondence, k -> new ArrayList<>()).add(entry);
+        }
 
 
         MsmElement lastNote = null; // where we might render into
@@ -767,7 +762,7 @@ public class OrnamentationMap extends GenericMap {
             //
             // For each fragment we silence the original element and re-insert a new "split note"
             // that covers only the ornament-free window [cursor, endCursor).
-            if (principalNote != null && (cursor >= 0.0 || endCursor < principalDuration)) {
+            if (principalNote != null && ((cursor >= 0.0) || (endCursor < principalDuration))) {
                 double principalStart = principalNote.getDate();
                 if(principalNote.has("ornament.date.offset"))
                     principalStart += principalNote.getAsDouble("ornament.date.offset");
@@ -809,20 +804,24 @@ public class OrnamentationMap extends GenericMap {
                 int leftoverIndex = 0;
                 for(Map.Entry<Double, Double> leftover : principalLeftovers.entrySet()) {
                     MsmElement extendThis = null;
+                    OrnamentEntry ornamEntry = null;
                     for(OrnamentEntry entry : group) {
+                        ornamEntry = entry;
                         ArrayList<Element> lastChord = entry.chordSequence.get(entry.chordSequence.size()-1);
                         for(Element element : lastChord) {
                             MsmElement note = new MsmElement(element);
                             double noteEnd = note.getAsDouble("date.perf") + note.getAsDouble("ornament.date.offset") + note.getAsDouble("ornament.duration");
-                            if(note.get("midi.pitch").equals(principalNote.get("midi.pitch")) && noteEnd == leftover.getKey()) {
+                            if(note.get("midi.pitch").equals(principalNote.get("midi.pitch")) && noteEnd >= leftover.getKey()) {
                                 extendThis = note;
                                 break;
                             }
                             // TODO: (?) search here following ornam to check if first note == principleNote -> extend/set date
                         }
+                        if(extendThis != null)
+                            break;
                     }
                     if(extendThis != null) {
-                        extendThis.set("ornament.duration", String.valueOf(leftover.getValue() - leftover.getKey() + extendThis.getAsDouble("ornament.duration")));
+                        extendThis.set("ornament.duration", String.valueOf(leftover.getValue() - extendThis.getAsDouble("date.perf") - extendThis.getAsDouble("ornament.date.offset")));
                         continue;
                     }
 
@@ -832,6 +831,9 @@ public class OrnamentationMap extends GenericMap {
                     note.set("duration", String.valueOf(leftover.getValue() - leftover.getKey()));
                     note.set("date.perf", leftover.getKey());
                     note.set("duration.perf", String.valueOf(leftover.getValue() - leftover.getKey()));
+                    if(ornamEntry != null) {
+                        ornamEntry.chordSequence.add(new ArrayList<>(Arrays.asList(note.getElement()))); // add the split note the ornament entry
+                    }
                     map.addElement(note.getElement());
                 }
             }
