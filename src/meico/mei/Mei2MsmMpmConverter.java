@@ -3149,6 +3149,14 @@ public class Mei2MsmMpmConverter {
         if (this.currentMeasure == null)                                                         // we process slurs only when they are in a measure environment
             return;
 
+        // we do not process slurs that start or end at non-indexed notes, e.g. we reject slurs that star or end at grace notes
+        Attribute startid = slur.getAttribute("startid");
+        if ((startid != null) && !this.allNotesAndChords.containsKey(startid.getValue().trim().replace("#", "")))
+            return;
+        Attribute endid = slur.getAttribute("endid");
+        if ((endid != null) && !this.allNotesAndChords.containsKey(endid.getValue().trim().replace("#", "")))
+            return;
+
         // get the xmlid of the slur, if it has one
         String xmlid = null;
         Attribute id = Helper.getAttribute("id", slur);
@@ -3160,16 +3168,16 @@ public class Mei2MsmMpmConverter {
         if (plistAtt != null) {
             // make sure that startid is in the plist
             if (slur.getAttribute("startid") != null) {
-                String startid = slur.getAttributeValue("startid");
-                if (!plistAtt.getValue().contains(startid))
+                String startId = slur.getAttributeValue("startid");
+                if (!plistAtt.getValue().contains(startId))
                     plistAtt.setValue(startid + " " + plistAtt.getValue());
             }
 
             // make sure that endid is in the plist
             if (slur.getAttribute("endid") != null) {
-                String endid = slur.getAttributeValue("endid");
-                if (!plistAtt.getValue().contains(endid))
-                    plistAtt.setValue(plistAtt.getValue() + " " + endid);
+                String endId = slur.getAttributeValue("endid");
+                if (!plistAtt.getValue().contains(endId))
+                    plistAtt.setValue(plistAtt.getValue() + " " + endId);
             }
 
             String[] plist = plistAtt.getValue().trim().replace("#", "").split("\\s+");                 // get all ids of the notes/chords
@@ -3207,8 +3215,7 @@ public class Mei2MsmMpmConverter {
         Double date = (Double) timingData.get(0);
         Double endDate = (Double) timingData.get(1);
         Attribute tstamp2 = (Attribute) timingData.get(2);
-        Attribute endid = (Attribute) timingData.get(3);
-        Attribute startid = slur.getAttribute("startid");
+//        endid = (Attribute) timingData.get(3);
 
         // check whether startid and endid are in the same staff and layer
         String staffId = "";
@@ -3918,11 +3925,24 @@ public class Mei2MsmMpmConverter {
      */
     public void indexNotesAndChords(Element mdiv) {
         this.allNotesAndChords.clear();
-        Nodes nodes = mdiv.query("descendant::*[(local-name()='note' or local-name()='chord') and attribute::xml:id]");
+        Nodes notes = mdiv.query("descendant::*[(local-name()='note' or local-name()='chord') and attribute::xml:id and not(attribute::grace)]");
 
-        for (int i=0; i < nodes.size(); ++i) {
-            Element node = (Element) nodes.get(i);
-            this.allNotesAndChords.put(Helper.getAttributeValue("id", node), node);
+        for (int i=0; i < notes.size(); ++i) {
+            Element note = (Element) notes.get(i);
+
+            // reject the note if it is in a graceGrp
+            boolean reject = false;
+            for (Element p = (Element) note.getParent(); (p != null) && !p.getLocalName().equals("layer"); p = (Element) p.getParent()) {
+                if (p.getLocalName().equals("graceGrp")) {
+                    reject = true;
+                    break;
+                }
+            }
+            if (reject)
+                continue;
+
+            // otherwise add the note to the hashmap
+            this.allNotesAndChords.put(Helper.getAttributeValue("id", note), note);
         }
     }
 

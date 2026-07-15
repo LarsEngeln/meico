@@ -16,6 +16,11 @@
 - New methods in class `meico.mpm.elements.maps.OrnamentationMap` to handle the new ornamentation data and render it to the map by applying ornament notes (`applyNotesToMaps()`, `copyNotePerfInformation()`) in `apply()`. Added support for multiple OrnamentDefs per principal note: if total frameLengths exceeds 100% of the principal note, the ornaments are proportionally distributed across the note's duration. New helper methods `resolveFrameValues()`, `getPrincipalDuration()`, and inner class `OrnamentEntry`.
 
 
+#### v0.11.14
+- Enhancement of method `meico.mei.Mei2MsmMpmConverter.indexNotesAndChords()`. It will now exclude grace notes.
+- Added an early break condition to method `meico.mei.Mei2MsmMpmConverter.processSlur()`, so it does not process slurs that start or end at grace notes.
+
+
 #### v0.11.13
 - Expanded handling of MEI elements `oStaff` and `oLayer`. Element `ossia` will now be processed.
 - Bugfix in method `meico.mpm.elements.styles.GenericStyle.equals()`.
