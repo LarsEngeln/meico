@@ -45,7 +45,7 @@ public class OrnamentData {
         this.date = Double.parseDouble(xml.getAttribute("date").getValue());
         this.ornamentDefName = xml.getAttribute("name.ref").getValue();
 
-        Attribute corresp = xml.getAttribute("correspondence");
+        Attribute corresp = xml.getAttribute("noteid");
         if(corresp != null)
             this.correspondence = corresp.getValue();
 

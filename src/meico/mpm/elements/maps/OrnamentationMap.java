@@ -132,7 +132,7 @@ public class OrnamentationMap extends GenericMap {
             ornament.addAttribute(new Attribute("xml:id", "http://www.w3.org/XML/1998/namespace", id));
 
         if ((correspondence != null) && !correspondence.isEmpty())
-            ornament.addAttribute(new Attribute("correspondence", correspondence));
+            ornament.addAttribute(new Attribute("noteid", correspondence));
 
         KeyValue<Double, Element> kv = new KeyValue<>(date, ornament);
         return this.insertElement(kv, false);
@@ -210,7 +210,7 @@ public class OrnamentationMap extends GenericMap {
             od.date = this.elements.get(index).getKey();
             od.xml = xml;
 
-            od.correspondence = Helper.getAttributeValue("correspondence", xml);
+            od.correspondence = Helper.getAttributeValue("noteid", xml);
 
             Attribute noteOrderAtt = xml.getAttribute("note.order");
             if (noteOrderAtt != null) {
@@ -319,7 +319,7 @@ public class OrnamentationMap extends GenericMap {
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
             MsmElement ornament = new MsmElement(this.getElement(i));
-            String correspondenceId = ornament.get("correspondence");
+            String correspondenceId = ornament.get("noteid");
             MsmElement principalNote = getElementById(notes, correspondenceId);
 
             if(principalNote == null) {
