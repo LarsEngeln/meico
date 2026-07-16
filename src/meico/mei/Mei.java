@@ -21,6 +21,9 @@ import java.util.*;
  */
 
 public class Mei extends meico.xml.XmlBase implements Cloneable {
+
+    boolean areOrnamentsExpanded = false;
+
     /**
      * a default constructor that creates an empty Mei instance
      */
@@ -247,6 +250,10 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
      * adds expansions for ornaments with graceNotes for the audio rendering only
      */
     public Mei expandOrnaments() {
+        if(areOrnamentsExpanded)
+            return this;
+
+        areOrnamentsExpanded = true;
         return (new MeiOrnamentExpander()).expandOrnaments(this);
     }
 
