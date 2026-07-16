@@ -366,7 +366,7 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
      * @return the list of msm documents (movements) created
      */
     public KeyValue<List<Msm>, List<Mpm>> exportMsmMpm(int ppq) {
-        return this.exportMsmMpm(ppq, true, false, true);
+        return this.exportMsmMpm(ppq, true, false, true, false);
     }
 
     /**
@@ -376,7 +376,7 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
      * @return the list of msm documents (movements) created
      */
     public KeyValue<List<Msm>, List<Mpm>> exportMsmMpm(int ppq, boolean dontUseChannel10) {
-        return this.exportMsmMpm(ppq, dontUseChannel10, false, true);
+        return this.exportMsmMpm(ppq, dontUseChannel10, false, true, false);
     }
 
     /**
@@ -387,7 +387,7 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
      * @return the list of msm documents (movements) created
      */
     public KeyValue<List<Msm>, List<Mpm>> exportMsmMpm(int ppq, boolean dontUseChannel10, boolean ignoreExpansions) {
-        return this.exportMsmMpm(ppq, dontUseChannel10, ignoreExpansions, true);
+        return this.exportMsmMpm(ppq, dontUseChannel10, ignoreExpansions, true, false);
     }
 
     /**
@@ -399,6 +399,21 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
      * @return the list of msm documents (movements) created
      */
     public synchronized KeyValue<List<Msm>, List<Mpm>> exportMsmMpm(int ppq, boolean dontUseChannel10, boolean ignoreExpansions, boolean cleanup) {
+        return this.exportMsmMpm(ppq, dontUseChannel10, ignoreExpansions, cleanup, false);
+    }
+
+    /**
+     * converts the mei data into msm and mpm format and returns a tuplet of lists, one with the msms (one per movement/mdiv), the other with the corresponding mpms
+     * @param ppq the ppq resolution for the conversion; this is counterchecked with the minimal required resolution to capture the shortest duration in the mei data; if a higher resolution is necessary, this input parameter is overridden
+     * @param dontUseChannel10 the flag says whether channel 10 (midi drum channel) shall be used or not; it is already done here, at the mei2msm conversion, because the msm should align with the midi file later on
+     * @param ignoreExpansions set this true to have a 1:1 conversion of MEI to MSM without the rearrangement that MEI's expansion elements produce
+     * @param cleanup set true to return a clean msm file or false to keep all the crap from the conversion
+     * @param ignoreOrnaments set this true to ignore the expanding of ornaments
+     * @return the list of msm documents (movements) created
+     */
+    public synchronized KeyValue<List<Msm>, List<Mpm>> exportMsmMpm(int ppq, boolean dontUseChannel10, boolean ignoreExpansions, boolean cleanup, boolean ignoreOrnaments) {
+        if(!ignoreOrnaments)
+            return this.expandOrnaments().exportMsmMpm(ppq, dontUseChannel10, ignoreExpansions, cleanup, true);  // expand ornaments and then convert to msm/mpm, ignoreOrnaments here as they are already expanded right before
         return (new Mei2MsmMpmConverter(ppq, dontUseChannel10, ignoreExpansions, cleanup)).convert(this);
     }
 
