@@ -803,6 +803,10 @@ public class OrnamentationMap extends GenericMap {
                 //(re-)add all "leftovers"
                 int leftoverIndex = 0;
                 for(Map.Entry<Double, Double> leftover : principalLeftovers.entrySet()) {
+                    double leftoverDuration = leftover.getValue() - leftover.getKey();
+                    if(leftoverDuration <= 1)
+                        continue;
+
                     MsmElement extendThis = null;
                     OrnamentEntry ornamEntry = null;
                     for(OrnamentEntry entry : group) {
