@@ -64,6 +64,7 @@ public class Main {
                 System.out.println("[-r] or [--resolve-copy-ofs]            resolve elements with 'copyof' and 'sameas' attributes into selfcontained elements with own xml:id; meico will output a revised MEI file");
                 System.out.println("[-n] or [--ignore-repetitions]          meico automatically expands repetition marks, use this option to prevent this step");
                 System.out.println("[-e] or [--ignore-expansions]           expansions in MEI indicate a rearrangement of the source material, use this option to prevent this step");
+                System.out.println("[-eo] or [--ignore-ornaments]           ornaments are expanded for having them resolved in MPM, use this option to prevent this step");
                 System.out.println("[-ex] or [--expressive]                 this activate a flag so all MIDI and audio exports are expressive");
                 System.out.println("[-x argument argument] or [--xslt argument argument] apply an XSL transform (first argument) to the MEI source and store the result with file extension defined by second argument");
 //                System.out.println("[-g] or [--svg]                         convert to SVGs");
@@ -94,6 +95,7 @@ public class Main {
         boolean resolveCopyOfs = false;
         boolean ignoreRepetitions = false;
         boolean ignoreExpansions = false;
+        boolean ignoreOrnaments = false;
         File xslt = null;
         String xsltOutputExtension = "";
 //        boolean svg = false;
@@ -129,6 +131,7 @@ public class Main {
             if ((args[i].equals("-r")) || (args[i].equals("--resolve-copy-ofs"))) { resolveCopyOfs = true; continue; }
             if ((args[i].equals("-n")) || (args[i].equals("--ignore-repetitions"))) { ignoreRepetitions = true; continue; }
             if ((args[i].equals("-e")) || (args[i].equals("--ignore-expansions"))) { ignoreExpansions = true; continue; }
+            if ((args[i].equals("-eo")) || (args[i].equals("--ignore-ornaments"))) { ignoreOrnaments = true; continue; }
             if ((args[i].equals("-ex")) || (args[i].equals("--expressive"))) { expressive = true; continue; }
 //            if ((args[i].equals("-g")) || (args[i].equals("--svg"))) { svg = true; continue; }
             if ((args[i].equals("-m")) || (args[i].equals("--msm"))) { msm = true; continue; }
@@ -241,15 +244,13 @@ public class Main {
 
         if (!(msm || mpm || pitches || chroma || midi || wav || mp3 || cqt)) return 0;     // if no conversion is required, we are done here
 
-        // convert mei -> expanded mei (needed to prepare ornament rendering)
-        Mei expandedMei = mei.expandOrnaments();
-        if(debug)
-            expandedMei.writeMei(Helper.getFilenameWithoutExtension(mei.getFile().getPath()) + "-expanded.mei"); // save the file
-
+        if(debug) {
+            mei.expandOrnaments().writeMei(Helper.getFilenameWithoutExtension(mei.getFile().getPath()) + "-expanded.mei"); // save the file
+        }
 
         // convert (expanded) mei -> msm/mpm
         System.out.println("Converting MEI to MSM and MPM.");
-        KeyValue<List<Msm>, List<Mpm>> msmpms = expandedMei.exportMsmMpm(720, dontUseChannel10, ignoreExpansions, !debug);    // usually, the application should use mei.exportMsm(720); the cleanup flag is just for debugging (in debug mode no cleanup is done)
+        KeyValue<List<Msm>, List<Mpm>> msmpms = mei.exportMsmMpm(720, dontUseChannel10, ignoreExpansions, !debug, ignoreOrnaments);    // usually, the application should use mei.exportMsm(720); the cleanup flag is just for debugging (in debug mode no cleanup is done)
         if (msmpms.getKey().isEmpty()) {
             System.err.println("MSM and MPM data could not be created.");
             return 1;
