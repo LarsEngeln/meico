@@ -14,6 +14,7 @@ import nu.xom.Nodes;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.Map;
 
 /**
  * This class represents an mpm performance. One mpm document can hold several performances.
@@ -472,7 +473,8 @@ public class Performance extends AbstractXmlSubtree {
         Performance.addMsmMapToList("markerMap", globalDated, maps);
         GenericMap globalPedalMap = Performance.addMsmMapToList("pedalMap", globalDated, maps);
 
-        OrnamentationMap.renderGlobalOrnamentationToParts(this.getAllMsmPartsAffectedByGlobalMap(clone, Mpm.ORNAMENTATION_MAP), globalOrnamentationMap);  // add global ornamentation attributes to affected parts' notes
+        Map<String, ArrayList<String>> addedOrnamentNotes = OrnamentationMap.renderGlobalOrnamentationToParts(this.getAllMsmPartsAffectedByGlobalMap(clone, Mpm.ORNAMENTATION_MAP), globalOrnamentationMap);  // add global ornamentation attributes to affected parts' notes
+        ArticulationMap.copyArticulations(addedOrnamentNotes, globalArticulationMap);
 
         for (GenericMap m : maps) {                         // for all maps in the list of maps for timing processing
            // if(globalArticulationMap != null && globalOrnamentationMap != null)
@@ -563,6 +565,9 @@ public class Performance extends AbstractXmlSubtree {
 
             // here comes the performance rendering of the part
             // some things should be done before the timing transformations
+            addedOrnamentNotes.putAll(OrnamentationMap.renderOrnamentationToMap(score, ornamentationMap));                     // apply ornamentation (incl. pending attributes from global ornamentation), except for milliseconds effects, these come later
+            ArticulationMap.copyArticulations(addedOrnamentNotes, articulationMap);
+
             GenericMap channelVolumeMap = DynamicsMap.renderDynamicsToMap(score, dynamicsMap);      // add dynamics data, must be done first because the tick timing will be altered by some articulations and rubato
             if (channelVolumeMap != null) {                                                         // there could be a new map with sub-note dynamics controllers to be added to maps
                 dated.appendChild(channelVolumeMap.getXml());                                       // add it to the MSM
@@ -575,7 +580,6 @@ public class Performance extends AbstractXmlSubtree {
             for (GenericMap m : maps)                                                               // for all maps in the list of maps for timing processing
                 RubatoMap.renderRubatoToMap(m, rubatoMap);                                          // rubato
 
-            OrnamentationMap.renderOrnamentationToMap(score, ornamentationMap);                     // apply ornamentation (incl. pending attributes from global ornamentation), except for milliseconds effects, these come later
 
             for (GenericMap m : maps)                                                               // for all maps in the list of maps for timing processing
                 TempoMap.renderTempoToMap(m, this.getPPQ(), tempoMap);                              // compute millisecond dates and end dates
@@ -593,8 +597,9 @@ public class Performance extends AbstractXmlSubtree {
             if (score == null)      // if this msm part has no score
                 continue;           // continue with the next msm part
             AsynchronyMap.renderAsynchronyToMap(score, asynchronyMap);                              // add asynchrony offsets to the millisecond dates
-            ArticulationMap.renderArticulationToMap_millisecondModifiers(score, articulationMap);   // apply articulations' millisecond modifiers
             OrnamentationMap.renderMillisecondsModifiersToMap(score, ornamentationMap);             // apply ornamentation milliseconds transformations
+
+            ArticulationMap.renderArticulationToMap_millisecondModifiers(score, articulationMap);   // apply articulations' millisecond modifiers
 
             ImprecisionMap.renderImprecisionToMap(score, imprecisionMap_timing, true);              // add timing imprecision
             ImprecisionMap.renderImprecisionToMap(score, imprecisionMap_dynamics, true);            // add dynamics imprecision
