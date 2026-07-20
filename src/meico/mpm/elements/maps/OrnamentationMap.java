@@ -239,10 +239,11 @@ public class OrnamentationMap extends GenericMap {
      * It will add only attributes to the MSM note elements which will be applied to the performance attributes later.
      * @param parts the MSM part elements which the ornamentationMap is applied to
      * @param ornamentationMap the global ornamentationMap
+     * @return returns a map of principal note IDs and the IDs of the notes that have been added to the map for that principal note
      */
-    public static void renderGlobalOrnamentationToParts(ArrayList<Element> parts, OrnamentationMap ornamentationMap) {
+    public static Map<String, ArrayList<String>> renderGlobalOrnamentationToParts(ArrayList<Element> parts, OrnamentationMap ornamentationMap) {
         if ((ornamentationMap == null) || ornamentationMap.isEmpty())
-            return;
+            return new HashMap<>();
 
         ArrayList<GenericMap> mapsToOrnament = new ArrayList<>();
         for (Element part : parts) {
@@ -256,7 +257,7 @@ public class OrnamentationMap extends GenericMap {
         }
 
         // global ornamentation rendering will add only modifier attributes to the notes; these will be rendered into performance attributes in the local processing later on
-        ornamentationMap.renderGlobalOrnamentationMap(mapsToOrnament);
+        return ornamentationMap.renderGlobalOrnamentationMap(mapsToOrnament);
     }
 
     /**
@@ -264,12 +265,13 @@ public class OrnamentationMap extends GenericMap {
      * This method is meant to be applied BEFORE the other transformations.
      * It will add only attributes to the MSM note elements which will be applied to the performance attributes later.
      * @param maps the MSM scores to which the ornamentationMap is applied
+     * @return returns a map of principal note IDs and the IDs of the notes that have been added to the map for that principal note
      */
-    public void renderGlobalOrnamentationMap(ArrayList<GenericMap> maps) {
+    public Map<String, ArrayList<String>> renderGlobalOrnamentationMap(ArrayList<GenericMap> maps) {
         if ((maps == null) || maps.isEmpty())
-            return;
+            return new HashMap<>();
 
-        this.apply(maps);
+        return this.apply(maps);
     }
 
     /**
@@ -277,10 +279,12 @@ public class OrnamentationMap extends GenericMap {
      * Basically, that map should be an MSM score because only note elements will be processed.
      * @param map MSM score
      * @param ornamentationMap
+     * @return returns a map of principal note IDs and the IDs of the notes that have been added to the map for that principal note
      */
-    public static void renderOrnamentationToMap(GenericMap map, OrnamentationMap ornamentationMap) {
+    public static Map<String, ArrayList<String>> renderOrnamentationToMap(GenericMap map, OrnamentationMap ornamentationMap) {
         if (ornamentationMap != null)
-            ornamentationMap.renderOrnamentationToMap(map);
+            return ornamentationMap.renderOrnamentationToMap(map);
+        return new HashMap<>();
     }
 
     /**
@@ -289,20 +293,23 @@ public class OrnamentationMap extends GenericMap {
      * A global ornamentationMap should be processed via renderGlobalOrnamentationToParts() or renderGlobalOrnamentationMap()
      * before invokiing this method.
      * @param map MSM score
+     * @return returns a map of principal note IDs and the IDs of the notes that have been added to the map for that principal note
      */
-    public void renderOrnamentationToMap(GenericMap map) {
+    public Map<String, ArrayList<String>> renderOrnamentationToMap(GenericMap map) {
+        Map<String, ArrayList<String>> addedNotes = new HashMap<>();
         if (map == null)
-            return;
+            return addedNotes;
 
         if (this.getLocalHeader() != null) { // this is a local ornamentationMap; global ones were already processed via renderGlobalOrnamentationMap(ArrayList<Element> maps)
             ArrayList<GenericMap> maps = new ArrayList<>();
             maps.add(map);
-            this.apply(maps);
+            addedNotes = this.apply(maps);
         }
 
         this.renderAllNonmillisecondsModifiersToMap(map);   // render ornamentation modifier attributes into .perf and velocity attributes
 
         //this.sanitizeOverlaps(map);
+        return addedNotes;
     }
 
     /**
@@ -311,11 +318,13 @@ public class OrnamentationMap extends GenericMap {
      * This is meant to be applied before all other transformations,
      * as it will add new notes to the map which might be processed by the other transformations as well.
      * @param map
+     * @return returns a map of principal note IDs and the IDs of the notes that have been added to the map for that principal note
      */
-    public void applyNotesToMaps(GenericMap map) {
+    public Map<String, ArrayList<String>> applyNotesToMaps(GenericMap map) {
         ArrayList<Element> toBeRemoved = new ArrayList<>();
         Set<String> alreadyRemovedIds = new HashSet<>();                         // track principal notes already marked for removal
         ArrayList<KeyValue<Double, Element>> notes = map.getAllElementsOfType("note");
+        Map<String, ArrayList<String>> addedNotes = new HashMap<>();
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
             MsmElement ornament = new MsmElement(this.getElement(i));
@@ -471,6 +480,7 @@ public class OrnamentationMap extends GenericMap {
 
                 noteOrder.set(j, note.getId());
                 map.addElement(note.getElement());
+                addedNotes.computeIfAbsent(correspondenceId, k -> new ArrayList<>()).add(note.getId());
                 ++j;
             }
             ornament.set("note.order.perf", String.join(" ", noteOrder));
@@ -479,6 +489,8 @@ public class OrnamentationMap extends GenericMap {
         for(Element element : toBeRemoved) {
             map.removeElement(Helper.getAttributeValue("id", element));
         }
+
+        return addedNotes;
     }
 
     /**
@@ -530,17 +542,19 @@ public class OrnamentationMap extends GenericMap {
      * It also adds new notes and marks notes to be deleted from the performance via the respective OrnamentData.apply() invocation.
      * @param maps list of MSM scores
      */
-    private void apply(ArrayList<GenericMap> maps) {
+    private Map<String, ArrayList<String>> apply(ArrayList<GenericMap> maps) {
+        Map<String, ArrayList<String>> addedNotes = new HashMap<>();
+
         if (maps.isEmpty())
-            return;
+            return addedNotes;
 
         if ((this.getLocalHeader() == null) && (this.getGlobalHeader() == null)) {
             System.err.println("Error processing MPM ornamentationMap: no header defined to look up ornamentationStyle.");
-            return;
+            return addedNotes;
         }
 
         for(GenericMap map : maps) {
-            applyNotesToMaps(map);
+            addedNotes = applyNotesToMaps(map);
         }
 
         // create a hashmap of all note elements, hashed by their ID, so we have quick access to them later on
@@ -839,10 +853,11 @@ public class OrnamentationMap extends GenericMap {
                         ornamEntry.chordSequence.add(new ArrayList<>(Arrays.asList(note.getElement()))); // add the split note the ornament entry
                     }
                     map.addElement(note.getElement());
+                    addedNotes.computeIfAbsent(correspondenceId, k -> new ArrayList<>()).add(note.getId());
                 }
             }
-
         }
+        return addedNotes;
     }
 
     /**
