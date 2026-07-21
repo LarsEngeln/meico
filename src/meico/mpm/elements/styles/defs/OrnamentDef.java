@@ -401,11 +401,7 @@ public class OrnamentDef extends AbstractDef {
                 double d = -1.0;
                 for (ArrayList<Element> chord : chordSequence) {
                     for (Element note : chord) {
-                        Attribute durAtt = Helper.getAttribute("duration", note);
-                        if (durAtt != null) {
-                            d = Double.parseDouble(durAtt.getValue());
-                            break;
-                        }
+                        d = Double.parseDouble(Helper.getAttributeValue("milliseconds.date.end", note)) - Double.parseDouble(Helper.getAttributeValue("milliseconds.date", note));
                     }
                     if(d >= 0.0)
                         break;
@@ -453,7 +449,7 @@ public class OrnamentDef extends AbstractDef {
             if(lastNote != null) {
                 previous = new ArrayList<>();
                 previous.add(lastNote.getElement());
-                lastDateOffset = lastNote.getAsDouble("ornament.date.offset");
+                lastDateOffset = lastNote.getAsDouble("ornament.milliseconds.date.offset");
             }
 
 
@@ -469,7 +465,7 @@ public class OrnamentDef extends AbstractDef {
                             removedNote = true;
                             // chordSequence.get(i).remove(note);
                             //previous = null;
-                            lastDateOffset = lastNote.getAsDouble("ornament.date.offset");
+                            lastDateOffset = lastNote.getAsDouble("ornament.milliseconds.date.offset");
                         }
                     }
                 }
@@ -485,7 +481,7 @@ public class OrnamentDef extends AbstractDef {
                 if(removedNote) { // expand note up to 2nd if 1st note has been removed
                     previous = new ArrayList<>();
                     previous.add(lastNote.getElement());
-                    lastDateOffset = lastNote.getAsDouble("ornament.date.offset");
+                    lastDateOffset = lastNote.getAsDouble("ornament.milliseconds.date.offset");
                 }
                 //previous = null;
             }
@@ -525,6 +521,9 @@ public class OrnamentDef extends AbstractDef {
                 default:    // unknown domain
                     return null;
             }
+
+            dateAttName = "ornament.milliseconds.date.offset";
+            durAttName = "ornament.milliseconds.duration";
 
             // set the ornament[.*].date.offset
             for (Element note : chord) {
