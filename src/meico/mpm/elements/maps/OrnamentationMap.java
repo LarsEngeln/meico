@@ -435,7 +435,7 @@ public class OrnamentationMap extends GenericMap {
                 else {
                     //Double rel = principalNote.getDuration() / noteOrder.size();
                     int rptNoteLength = 135;
-                    maxNotes = Math.ceil(principalNote.getDuration() / rptNoteLength);
+                    maxNotes = Math.ceil((principalNote.getAsDouble("milliseconds.date.end") - principalNote.getAsDouble("milliseconds.date")) / rptNoteLength);
                 }
 
                 while(maxNotes >= (notesToAdd.size() + chords.size() + rptNotesAmount)) {
