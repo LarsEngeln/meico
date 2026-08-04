@@ -225,6 +225,7 @@ public class MeiOrnamentExpander {
                 && !previousElement.getLocalName().equals("chord")
                 && !previousElement.getLocalName().equals("beam")
                 && !previousElement.getLocalName().equals("rest")
+                && !previousElement.getLocalName().equals("space")
         )
             previousElement = Helper.getPreviousSiblingElement(previousElement);
 
@@ -234,6 +235,7 @@ public class MeiOrnamentExpander {
                 && !nextElement.getLocalName().equals("chord")
                 && !nextElement.getLocalName().equals("beam")
                 && !nextElement.getLocalName().equals("rest")
+                && !nextElement.getLocalName().equals("space")
         )
             nextElement = Helper.getNextSiblingElement(nextElement);
 
@@ -309,6 +311,10 @@ public class MeiOrnamentExpander {
         String ornamentName = "grace " + graceType;
         if(!graceIsBefore.get()) {
             ornamentName = ornamentName + " delayed";
+        }
+
+        if(principalNote.getElement().getLocalName().equals("space")) {
+            ornamentName = "fioritura";
         }
 
         OrnamentExpansion ornamentExpansion = new OrnamentExpansion();

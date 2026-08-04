@@ -2622,6 +2622,9 @@ public class Mei2MsmMpmConverter {
     private void addArticulationToMap(double date, String articulation, String id, String noteid, ArticulationMap articulationMap, ArticulationStyle articulationStyle) {
         String[] articulations = articulation.trim().split("\\s+");                 // get all articulation specifiers as individual strings
 
+        if(id.equals(noteid))
+            id += "_artic";
+
         for (String artic : articulations) {
             if (articulationStyle.getDef(artic) == null) {
                 ArticulationDef def = ArticulationDef.createDefaultArticulationDef(artic);
@@ -3563,6 +3566,8 @@ public class Mei2MsmMpmConverter {
         // this is just for the debugging in mei
         rest.addAttribute(new Attribute("date", s.getAttributeValue("date")));
         rest.addAttribute(new Attribute("midi.dur", s.getAttributeValue("duration")));
+
+        this.allNotesAndChords.put(Helper.getAttributeValue("id", s), s);    // add the rest to the HashMap of all notes and chords
     }
 
     /**

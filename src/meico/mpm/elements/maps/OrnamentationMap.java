@@ -335,7 +335,7 @@ public class OrnamentationMap extends GenericMap {
     public Map<String, ArrayList<String>> applyNotesToMaps(GenericMap map) {
         ArrayList<Element> toBeRemoved = new ArrayList<>();
         Set<String> alreadyRemovedIds = new HashSet<>();                         // track principal notes already marked for removal
-        ArrayList<KeyValue<Double, Element>> notes = map.getAllElementsOfType("note");
+        ArrayList<KeyValue<Double, Element>> notes = map.getAllElements();
         Map<String, ArrayList<String>> addedNotes = new HashMap<>();
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
@@ -434,7 +434,7 @@ public class OrnamentationMap extends GenericMap {
                 }
                 else {
                     //Double rel = principalNote.getDuration() / noteOrder.size();
-                    int rptNoteLength = 135;
+                    int rptNoteLength = 150;
                     maxNotes = Math.ceil((principalNote.getAsDouble("milliseconds.date.end") - principalNote.getAsDouble("milliseconds.date")) / rptNoteLength);
                 }
 
@@ -680,6 +680,11 @@ public class OrnamentationMap extends GenericMap {
         HashMap<String, Element> notes = new HashMap<>();
         for (GenericMap map : maps) {
             for (KeyValue<Double, Element> note : map.getAllElementsOfType("note")) {
+                Attribute id = Helper.getAttribute("id", note.getValue());
+                if (id != null)
+                    notes.put(id.getValue(), note.getValue());
+            }
+            for (KeyValue<Double, Element> note : map.getAllElementsOfType("rest")) {
                 Attribute id = Helper.getAttribute("id", note.getValue());
                 if (id != null)
                     notes.put(id.getValue(), note.getValue());
