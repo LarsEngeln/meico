@@ -449,6 +449,15 @@ public class OrnamentationMap extends GenericMap {
             noteOrder = new ArrayList<String>(Arrays.asList(chordsString.split(" ")));
 
             MsmElement lastNote = null;
+            boolean hasSamePitches = true;
+            MsmElement firstNote = children.get(0);
+            for(MsmElement child : children) {
+                if(!child.get("midi.pitch").equals(firstNote.get("midi.pitch"))) {
+                    hasSamePitches = false;
+                    break;
+                }
+            }
+
             for (int j = 0; j < noteOrder.size();) {
                 String order = noteOrder.get(j);
 
@@ -464,7 +473,7 @@ public class OrnamentationMap extends GenericMap {
                         break;
                     }
                 }
-                if(!ornament.get("name.ref").equals("tremolo") && note != null && lastNote != null && note.get("midi.pitch").equals(lastNote.get("midi.pitch"))) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
+                if(!hasSamePitches && note != null && lastNote != null && note.get("midi.pitch").equals(lastNote.get("midi.pitch"))) { // sanitze double notes, which can occur due to repetitions; if the note is the same as the last one, we can skip it, as it would be redundant
                     note = null;
                 }
 
