@@ -1,6 +1,6 @@
 ### Version History
 
-#### v0.11.14 candidate
+#### v0.11.15
 - new methods for class `meico.mei.Helper`: adds variant for `findChild()` that finds child elements by attribute value, adds variant for `findSibling()` that finds sibling by ID, variant for `cloneElement()` that creates deep or flat element copies, variant for `createElement()` that creates elements with short UUID-based IDs, `removeAllAttributes()` removes all except specified attributes from element, `appendChildAfterSibling()` inserts child after sibling,  adds variants for `addUUID()` for short UUID-based xml:id attributes with or without namespace, `shiftNoteDiatonicly()` shifts note pitch diatonically, `getHalfstepsFromC()` returns semitones from C, `getHalfstepsBetween()` calculates semitone distance.
 - New class `meico.xml.RichElement` as an Attribute-first base wrapper for XML element access with methods for: attribute access (`get()`, `set()`, `has()`, `is()`, `getAsDouble()`, `getAsInteger()`, `copyValue()`), DOM manipulation (`appendChild()`, `getParent()`, `removeParent()`), child access (`getChildren()`, `getChildrenOfType()`, `getFirstChildByName()`, `getFromChild()`), and ID management (`getId()`, `setId()`, `createNewId()`). Supports `.ges` attribute handling and deep copying.
 - New class `meico.mei.MeiElement` extending RichElement with MEI namespace handling.
