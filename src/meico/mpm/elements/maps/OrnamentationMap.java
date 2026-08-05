@@ -334,7 +334,6 @@ public class OrnamentationMap extends GenericMap {
      */
     public Map<String, ArrayList<String>> applyNotesToMaps(GenericMap map) {
         ArrayList<Element> toBeRemoved = new ArrayList<>();
-        Set<String> alreadyRemovedIds = new HashSet<>();                         // track principal notes already marked for removal
         ArrayList<KeyValue<Double, Element>> notes = map.getAllElements();
         Map<String, ArrayList<String>> addedNotes = new HashMap<>();
 
@@ -347,19 +346,6 @@ public class OrnamentationMap extends GenericMap {
                 if(ornament.has("note.order")) // in case of an arpeggio, i.e.
                     ornament.set("note.order.perf", ornament.get("note.order"));
                 continue;
-            }
-
-            if (!alreadyRemovedIds.contains(correspondenceId)) {
-               // toBeRemoved.add(principalNote.getElement());
-               // alreadyRemovedIds.add(principalNote.getId());
-            }
-            if(ornament.get("name.ref").equals("tremolo")) { // removing tremNotes
-                for(RichElement note : ornament.getChildren()) {
-                    if(!alreadyRemovedIds.contains(note.getId())) {
-                       // toBeRemoved.add(note.getElement());
-                       //  alreadyRemovedIds.add(note.getId());
-                    }
-                }
             }
 
             ornament.copyValue("date", principalNote);
@@ -894,8 +880,6 @@ public class OrnamentationMap extends GenericMap {
                     note.setId(note.getId() + "_split" + leftoverIndex++);
                     note.set("milliseconds.date", leftover.getKey());
                     note.set("milliseconds.date.end", leftover.getValue());
-                    //note.set("date.perf", leftover.getKey());
-                    //note.set("duration.perf", String.valueOf(leftover.getValue() - leftover.getKey()));
                     if(ornamEntry != null) {
                         ornamEntry.chordSequence.add(new ArrayList<>(Arrays.asList(note.getElement()))); // add the split note the ornament entry
                     }

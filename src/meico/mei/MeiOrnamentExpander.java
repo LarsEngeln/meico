@@ -324,15 +324,6 @@ public class MeiOrnamentExpander {
         boolean principalIsNote = principalNote.getName().equals("note");
         String dur = notes.values().iterator().next().get("dur");
 
-        /*if(!graceIsBefore.get() && principalIsNote) {
-            MeiElement graceNote = new MeiElement("note");
-            graceNote.setId(graceNote.getId() + "_principal");
-            graceNote.set("dur", dur);
-            graceNote.set("oct", principalNote.get("oct"));
-            graceNote.set("pname", principalNote.get("pname"));
-            ornamentExpansion.addElement(graceNote);
-        }*/
-
         MeiElement halfStepsTo = principalNote;
         if(!principalIsNote) {
            halfStepsTo = notes.get(notes.size() - 1);
@@ -347,15 +338,6 @@ public class MeiOrnamentExpander {
             }
             ornamentExpansion.addElement(note);
         }
-
-        /*if(graceIsBefore.get()) {
-            MeiElement graceNote = new MeiElement("note");
-            graceNote.setId(graceNote.getId() + "_principal");
-            graceNote.set("dur", dur);
-            graceNote.set("oct", principalNote.get("oct"));
-            graceNote.set("pname", principalNote.get("pname"));
-            ornamentExpansion.addElement(graceNote);
-        }*/
 
         if(graceIsBefore.get())
             appendOrnamentExpansion(principalNote, ornamentExpansion, false);
@@ -488,9 +470,7 @@ public class MeiOrnamentExpander {
         List<String> alterations = ornamentLookup.get(ornamentName);
 
         int pnDur = Integer.parseInt(principalNote.get("dur"));
-        int noteDuration = 32; //pnDur * 4;
-        //if (noteDuration <= 8)
-        //     noteDuration = 16;
+        int noteDuration = 32;
 
         String principalAccid = getCurrentAccid(principalNote);
         String upperAccid = ornament.get("accidupper");

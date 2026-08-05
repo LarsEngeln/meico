@@ -2828,9 +2828,6 @@ public class Mei2MsmMpmConverter {
         String numAttr      = element.get("num");
         String stemModAttr  = element.get("stem.mod");
 
-        //if(unitdurAttr == null && numAttr == null && stemModAttr == null)                 // treat as chord if no unitdir nor num attribute is given
-         //   this.processChord(trem);
-
         int repetitions = -1;
         if (unitdurAttr != null) {
             int unitdur = Integer.parseInt(unitdurAttr);

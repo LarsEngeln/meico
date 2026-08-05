@@ -467,8 +467,6 @@ public class OrnamentDef extends AbstractDef {
                         if(note.get("midi.pitch").equals(lastNote.get("midi.pitch"))) {
                             note.removeParent();
                             removedNote = true;
-                            // chordSequence.get(i).remove(note);
-                            //previous = null;
                             lastDateOffset = lastNote.getAsDouble("ornament.milliseconds.date.offset");
                         }
                     }
@@ -487,9 +485,7 @@ public class OrnamentDef extends AbstractDef {
                     previous.add(lastNote.getElement());
                     lastDateOffset = lastNote.getAsDouble("ornament.milliseconds.date.offset");
                 }
-                //previous = null;
             }
-            //previous = null;
 
             double lastDuration = spacedStart + spacedLength - lastDateOffset;
 
