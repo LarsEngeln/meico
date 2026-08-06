@@ -1,0 +1,740 @@
+package meico.mei;
+
+import meico.supplementary.Stopwatch;
+import nu.xom.Element;
+import nu.xom.Elements;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * This class adds ornamentExpansions for ornaments, by creating notes to be played within a <supplied></supplied> after the principal note.
+ * This is mainly for rendering via MPM.
+ * These ornamentExpansions are inserted into the given MEI (the original MEI file stays untouched).
+ * @author Lars Engeln
+ */
+public class MeiOrnamentExpander {
+    public Mei mei;
+    private Map<String, OrnamentExpansion> ornamentExpansions   = new HashMap<String, OrnamentExpansion>(); // ornament's startid to ornamentExpansion
+    private Map<String, List<String>> ornamentLookup            = new HashMap<String, List<String>>();
+
+    private ArrayList<String> prevOrnams                        = new ArrayList<String>(); // already expanded ornams with that are "previous" to another ornam
+    private Map<String, Element> nextOrnams                     = new HashMap<String, Element>(); // prevId to nextElement - remember "next" ornament to be processed, if "prev"-Id have not been processed yet - so, if "prev"/"next" is not well sorted in the MEI
+
+    private Map<String, Map<String, String>> currentAccids      = new HashMap<>(); // all accids in the current measure, "oct"->"pname"->"accid"
+    private Map<String, String> currentKey                      = new HashMap<>(); // accids of the current key, "pname"->"accid"
+    private MeiElement currentMeasure                           = null;
+    private ArrayList<MeiElement> currentSlurs                  = new ArrayList<>();   // cached slurs in the current measure
+    private ArrayList<MeiElement> currentGraces                 = new ArrayList<>();   // cached graces in the current measure, to be added at the end of the measure
+    private Map<String, MeiElement> currentNotes                = new HashMap<>();   // cached notes in the current measure, to be used for grace note expansion
+
+    /**
+     * constructor
+     * @param mei the MEI to be expanded
+     */
+    public MeiOrnamentExpander(Mei mei) {
+        try {
+            createOrnamentLookUp();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * default constructor, if MEI is not yet available
+     */
+    public MeiOrnamentExpander()  {
+        try {
+            createOrnamentLookUp();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * adds expanded readings for ornaments
+     * @param mei the MEI to be expanded
+     * @result the expanded MEI
+     */
+    public Mei expandOrnaments(Mei mei) {
+        if (mei == null) {
+            System.out.println("\nThe provided MEI object is null and cannot be expanded.");
+            return null;
+        }
+
+        UUID.randomUUID(); // initalizes the random generator, so that it does not cause a delay during the expansion process
+
+        System.out.println("\nInstructifying " + ((mei.getFile() != null) ? mei.getFile().getName() : "MEI data") + ".");
+        Stopwatch stopwatch = new Stopwatch();
+
+        this.mei = mei;
+
+        if (this.mei.isEmpty() || (this.mei.getMusic() == null) || (this.mei.getMusic().getFirstChildElement("body", this.mei.getMusic().getNamespaceURI()) == null))      // if no mei music data available
+            return mei;
+
+        Elements bodies = this.mei.getMusic().getChildElements("body", this.mei.getMusic().getNamespaceURI());  // get the list of body elements in the mei source
+        for (int b = 0; b < bodies.size(); ++b)                                 // for each body
+            this.expandOrnaments(bodies.get(b));                                        // convert each body to msm, the resulting Msms can then be found in this.movements
+
+        for(Element element : nextOrnams.values()){  // do not forget someone, should never happen if MEI is well-defined
+            this.expandOrnamentsElement(element);
+        }
+        for(MeiElement grace : currentGraces) {     // do not forget someone, expand graces of last measure
+            expandGrace(grace);
+        }
+
+        stopwatch.markTotal("MEI expansion of Ornaments finished.");
+
+        return mei;
+    }
+
+    /**
+     * iterates the MEI XML tree to identify supported elements to get expanded
+     * @param root
+     */
+    private void expandOrnaments(Element root) {
+        Elements es = root.getChildElements();                                  // all child elements of root
+
+        for (int i = 0; i < es.size(); ++i) {                                   // element beginHere traverses the mei tree
+            Element e = es.get(i);
+
+            // process the element
+            switch (e.getLocalName()) {
+                case "turn":
+                case "trill":
+                case "mordent":
+                case "ornam":
+                    expandOrnamentsElement(e);
+                    continue;
+                case "graceGrp":
+                    MeiElement graceGrp = new MeiElement(e, false);
+                    currentGraces.add(graceGrp);
+                    break;
+                case "note":
+                    MeiElement note = new MeiElement(e, false);
+                    if(note.has("grace"))
+                        currentGraces.add(note);
+                    else
+                        currentNotes.put(note.getId(), note);
+                    String accid = note.get("accid");
+                    if(accid == null || accid.isEmpty())
+                        break;
+                    if(!currentAccids.containsKey(note.get("oct")))
+                        currentAccids.put(note.get("oct"), new HashMap<>());
+                    currentAccids.get(note.get("oct")).put(note.get("pname"), accid);
+                    continue;
+                case "chord":
+                    MeiElement chord = new MeiElement(e, false);
+                    if(chord.has("grace"))
+                        currentGraces.add(chord);
+                    else
+                        currentNotes.put(chord.getId(), chord);
+                    break;
+                case "accid":
+                    break;
+
+                case "keySig":
+                    currentKey = new HashMap<>();
+                    break;
+                case "keyAccid":
+                    MeiElement keyAccid = new MeiElement(e);
+                    currentKey.put(keyAccid.get("pname"), keyAccid.get("accid"));
+                    continue;
+                case "measure":
+                    for(MeiElement grace : currentGraces) {                // if we have graces, expand them before we process the next measure (as we needed to collect slurs before)
+                        expandGrace(grace);
+                    }
+                    currentMeasure  = new MeiElement(e, false);
+                    currentSlurs    = new ArrayList<>();
+                    currentGraces   = new ArrayList<>();
+                    currentNotes    = new HashMap<>();
+                    currentAccids   = new HashMap<>();
+                    break;
+                case "slur":
+                    MeiElement slur = new MeiElement(e, false);
+                    currentSlurs.add(slur);
+                    continue;
+            }
+
+            this.expandOrnaments(e);
+        }
+
+    }
+
+    /**
+     * searches for the element with the given id in the list of elements
+     * @param elements
+     * @param id
+     * @return the element with the given id, or null if no such element is found
+     */
+    private MeiElement getElementWithId(ArrayList<MeiElement> elements, String id) {
+        for(MeiElement element : elements) {
+            if(element.getId() != null && element.getId().equals(id))
+                return element;
+        }
+        return null;
+    }
+
+    /**
+     * searches for the corresponding principal note of a grace note, by searching for slurs and surrounding notes.
+     * If no slur is found, the grace note is before the principal note if there is a following note,
+     * and after if there is a previous note. If both are found, the grace note is places according to "unacc"/"acc"
+     * @param element
+     * @param graceIsBefore
+     * @return true if grace is before corresponding, false if is after
+     */
+    private MeiElement getCorrespondingNoteOfGrace(MeiElement element, Map<String, MeiElement> graceNotes, AtomicBoolean graceIsBefore) {
+        MeiElement principalNote = null;
+
+        if(this.currentMeasure == null)
+            return null;
+
+        ArrayList<MeiElement> slurs = this.currentSlurs;
+
+        for(MeiElement slur : slurs) {
+            MeiElement note = graceNotes.get(slur.get("startid"));
+            if (note != null) {
+                String endid = slur.get("endid");
+                Element principalNoteElement = Helper.findSibling(element.getElement(), endid);
+                if (principalNoteElement != null) {
+                    principalNote = new MeiElement(principalNoteElement);
+                    graceIsBefore.set(true);
+                    return principalNote;
+                }
+            }
+            note = graceNotes.get(slur.get("endid"));
+            if (note != null) {
+                String startid = slur.get("startid");
+                Element principalNoteElement = Helper.findSibling(element.getElement(), startid);
+                if (principalNoteElement != null) {
+                    principalNote = new MeiElement(principalNoteElement);
+                    graceIsBefore.set(false);
+                    return principalNote;
+                }
+            }
+        }
+
+        // No slur found: walk siblings until a note or chord is found (or null)
+        Element previousElement = Helper.getPreviousSiblingElement(element.getElement());
+        while (previousElement != null
+                && !previousElement.getLocalName().equals("note")
+                && !previousElement.getLocalName().equals("chord")
+                && !previousElement.getLocalName().equals("beam")
+                && !previousElement.getLocalName().equals("rest")
+                && !previousElement.getLocalName().equals("space")
+        )
+            previousElement = Helper.getPreviousSiblingElement(previousElement);
+
+        Element nextElement = Helper.getNextSiblingElement(element.getElement());
+        while (nextElement != null
+                && !nextElement.getLocalName().equals("note")
+                && !nextElement.getLocalName().equals("chord")
+                && !nextElement.getLocalName().equals("beam")
+                && !nextElement.getLocalName().equals("rest")
+                && !nextElement.getLocalName().equals("space")
+        )
+            nextElement = Helper.getNextSiblingElement(nextElement);
+
+        //TODO: resolve note from chord/beam ?
+
+        if (nextElement == null && previousElement == null) {
+            graceIsBefore.set(true);
+            return null;
+        }
+        if (nextElement != null && previousElement == null) {
+            principalNote = new MeiElement(nextElement);
+            graceIsBefore.set(true);
+            return principalNote;
+        }
+        if (previousElement != null && nextElement == null) {
+            principalNote = new MeiElement(previousElement);
+            graceIsBefore.set(false);
+            return principalNote;
+        }
+
+        // if both != null
+        if (nextElement.getLocalName().equals("rest") && previousElement.getLocalName().equals("rest")) {
+            graceIsBefore.set(true);
+            return null;
+        }
+        if (!nextElement.getLocalName().equals("rest") && previousElement.getLocalName().equals("rest")) {
+            principalNote = new MeiElement(nextElement);
+            graceIsBefore.set(true);
+            return principalNote;
+        }
+        if (!previousElement.getLocalName().equals("rest") && nextElement.getLocalName().equals("rest")) {
+            principalNote = new MeiElement(previousElement);
+            graceIsBefore.set(false);
+            return principalNote;
+        }
+
+        String graceType = element.getAttributeValue("grace");
+        if(graceType == null)
+            graceType = "";
+
+        if(graceType.equals("acc")) {
+            principalNote = new MeiElement(nextElement);
+            graceIsBefore.set(true);
+            return principalNote;
+        }
+        if(graceType.equals("unacc")) {
+            principalNote = new MeiElement(previousElement);
+            graceIsBefore.set(false);
+            return principalNote;
+        }
+
+        principalNote = new MeiElement(nextElement);
+        graceIsBefore.set(true);
+        return principalNote;
+    }
+
+    /**
+     * expands a grace note or a graceGrp to an OrnamentExpansion,
+     * by searching for the corresponding principal note.
+     * The OrnamentExpansion is inserted into the given MEI (the original MEI file stays untouched).
+     * @param element
+     */
+    private void expandGrace(MeiElement element) {
+        Map<String, MeiElement> notes = this.collectAllNotes(element);
+        AtomicBoolean graceIsBefore = new AtomicBoolean(true);
+        MeiElement principalNote = getCorrespondingNoteOfGrace(element, notes, graceIsBefore);
+        if(principalNote == null)
+            return;
+
+        String graceType = element.get("grace");
+        if(graceType == null || !graceType.equals("unacc"))
+            graceType = "acc";
+        String ornamentName = "grace " + graceType;
+        if(!graceIsBefore.get()) {
+            ornamentName = ornamentName + " delayed";
+        }
+
+        if(principalNote.getElement().getLocalName().equals("space")) {
+            ornamentName = "fioritura";
+        }
+
+        OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
+        ornamentExpansion.addCorrespondence(principalNote); // sets the corresponds of the OrnamentExpansion to the ornament, as the ornament has a correspondence to the principalNote via "startid"
+        ornamentExpansion.setLabel(ornamentName);
+
+        boolean principalIsNote = principalNote.getName().equals("note");
+        String dur = notes.values().iterator().next().get("dur");
+
+        MeiElement halfStepsTo = principalNote;
+        if(!principalIsNote) {
+           halfStepsTo = notes.get(notes.size() - 1);
+        }
+        for (MeiElement n : notes.values()) {
+            MeiElement note = new MeiElement(n.getElement(), true);
+            note.setId(note.getId() + "_grace");
+
+            if(halfStepsTo != null) {
+                double halfsteps = getHalfstepsBetween(halfStepsTo, note);
+                note.set("intm", String.valueOf(halfsteps) + "hs");
+            }
+            ornamentExpansion.addElement(note);
+        }
+
+        if(graceIsBefore.get())
+            appendOrnamentExpansion(principalNote, ornamentExpansion, false);
+        else
+            appendOrnamentExpansion(principalNote, ornamentExpansion, true);
+    }
+
+    /**
+     * Recursively collects all note and chord elements from the given MeiElement.
+     * Traverses the entire element tree regardless of nesting depth.
+     * @param element the element to collect notes from
+     * @return a list of all MeiElement notes and chords found
+     */
+    private Map<String, MeiElement> collectAllNotes(MeiElement element) {
+        Map<String, MeiElement> notes = new LinkedHashMap<String, MeiElement>();
+        String elementName = element.getName();
+
+        // If this element is a note or chord, add it to the list
+        if (elementName.equals("note") || elementName.equals("chord")) {
+            notes.put(element.getId(), element);
+        }
+
+        // Recursively traverse all children
+       ArrayList<MeiElement> children = element.getChildrenAsMeiElements();
+        for (MeiElement child : children) {
+            notes.putAll(collectAllNotes(new MeiElement(child)));
+        }
+
+        return notes;
+    }
+
+    /**
+     * returns the element's "full"name, e.g. "upper mordent", "lower turn", "double cadence lower prefix"
+     * @param element
+     * @return
+     */
+    private String getOrnamentFullName(MeiElement element) {
+        String form = element.get("form");
+
+        String name = element.getName();
+
+        if(name.equals("ornam")) {
+            MeiElement symbol = new MeiElement(element.getFirstChildByName("symbol"));
+            return getOrnamentFullNameFromSymbol(symbol);
+        }
+        if(form != null && !form.isEmpty() && !form.equals("unknown"))
+            name = form + " " + name;
+
+        return name;
+    }
+    /**
+     * returns the element's "full"name from the symbol's glyphName, e.g. "double cadence lower prefix"
+     * @param symbol
+     * @return
+     */
+    private String getOrnamentFullNameFromSymbol(MeiElement symbol) {
+        if(symbol == null)
+            return null;
+
+        String glyphName = symbol.get("glyph.name");
+        if(glyphName == null)
+            return null;
+
+        String prefix = "ornamentPrecomp";
+        glyphName = glyphName.startsWith(prefix) ? glyphName.substring(prefix.length()) : glyphName;
+
+        return String.join(" ", glyphName.split("(?=[A-Z])") ).toLowerCase();
+    }
+
+    /**
+     * checks and prepares the OrnamentExpansion creation, and calls (if sufficient) createOrnamentExpansion
+     * @param element
+     */
+    private void expandOrnamentsElement(Element element) {
+        MeiElement ornament = new MeiElement(element);
+        String ornamFullName = getOrnamentFullName(ornament);
+        if(ornamFullName == null || ornamFullName.equals(""))
+            return;     // if I am not yet supported
+
+        if (checkForCombinedOrnaments(ornament))
+            return;     // if I am in combination with another ornament that is previous to me, but has not been processed, yet
+
+        String startid = ornament.get("startid");
+        if(startid == null)
+            return;     // if the corresponding note cannot be identified
+        startid = startid.replace("#", "");
+
+        Element principalNoteElement = Helper.findSibling(ornament.getElement(), startid);
+        if (principalNoteElement == null)
+            return;     // if the corresponding note is not availabletart
+        MeiElement principalNote = new MeiElement(principalNoteElement);
+
+        if(ornament.get("staff") == null && ornament.get("part") == null) {
+            MeiElement parent = principalNote;
+            do {
+                parent = new MeiElement(parent.getParent());
+                if(parent != null && (parent.getName().equals("staff") || parent.getName().equals("part")))
+                    if(parent.has("n")) {
+                        ornament.set(parent.getName(), parent.get("n"));
+                        break;
+                    }
+            } while (parent != null && !parent.getName().equals("part"));
+        }
+
+        OrnamentExpansion ornamentExpansion = createOrnamentExpansion(ornamFullName, principalNote, ornament);
+        appendOrnamentExpansion(principalNote, ornamentExpansion, true);
+
+        checkForNextOrnament(ornament);
+    }
+
+    /**
+     * creates an OrnamentExpansion with ornamentName for the ornament, by creating notes to be played within a <supplied></supplied> addition after the principal note.
+     * This OrnamentExpansion is inserted into the given MEI (the original MEI file stays untouched).
+     * @param ornamentName
+     * @param principalNote
+     * @param ornament
+     * @return
+     */
+    private OrnamentExpansion createOrnamentExpansion(String ornamentName, MeiElement principalNote, MeiElement ornament) {
+        OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
+        ornamentExpansion.addCorrespondence(principalNote); // sets the corresponds of the OrnamentExpansion to the ornament, as the ornament has a correspondence to the principalNote via "startid"
+
+        String delayed = ornament.get("delayed");
+        if(delayed == null || delayed.equals("false"))
+            delayed = "";
+        else
+            delayed = " delayed";
+        ornamentExpansion.setLabel(ornamentName + delayed);
+
+        List<String> alterations = ornamentLookup.get(ornamentName);
+
+        int pnDur = Integer.parseInt(principalNote.get("dur"));
+        int noteDuration = 32;
+
+        String principalAccid = getCurrentAccid(principalNote);
+        String upperAccid = ornament.get("accidupper");
+        String lowerAccid = ornament.get("accidlower");
+        boolean isFirstPrincipal = principalAccid != null;
+        boolean isFirstUpper = upperAccid != null;
+        boolean isFirstLower = lowerAccid != null;
+
+        for (String alterationEntry : alterations) {
+            if(alterationEntry.equals("|:")) {
+                MeiElement repeat = new MeiElement("barLine");
+                repeat.set("form", "rptstart");
+                ornamentExpansion.addElement(repeat);
+                continue;
+            }
+            if(alterationEntry.equals(":|")) {
+                MeiElement repeat = new MeiElement("barLine");
+                repeat.set("form", "rptend");
+                ornamentExpansion.addElement(repeat);
+                continue;
+            }
+            if(alterationEntry.equals(":|:")) {
+                MeiElement repeat = new MeiElement("barLine");
+                repeat.set("form", "rptboth");
+                ornamentExpansion.addElement(repeat);
+                continue;
+            }
+
+            MeiElement note = new MeiElement("note");
+            note.set("dur", String.valueOf(noteDuration));
+            note.set("oct", principalNote.get("oct"));
+            note.set("pname", principalNote.get("pname"));
+
+            int alteration = Integer.parseInt(alterationEntry);
+            Helper.shiftNoteDiatonicly(note.getElement(), alteration);
+
+            String accid = getCurrentAccid(note);
+            if(!accid.isEmpty())
+                note.set("accid", accid);                   // explicitly set the accid
+
+            switch (alteration) {
+                case 0:
+                    setAccidGes(note, principalAccid, isFirstPrincipal);
+                    isFirstPrincipal = false;
+                    break;
+                case 1:
+                    setAccidGes(note, upperAccid, isFirstUpper);
+                    isFirstUpper = false;
+                    break;
+                case -1:
+                    setAccidGes(note, lowerAccid, isFirstLower);
+                    isFirstLower = false;
+                    break;
+            }
+
+            double halfsteps = getHalfstepsBetween(principalNote, note);
+            note.set("intm", String.valueOf(halfsteps)+"hs");
+
+            ornamentExpansion.addElement(note);
+        }
+
+        return ornamentExpansion;
+    }
+
+    /**
+     * returns the halfsteps between principalNote and auxiliryNote
+     * @param principalNote
+     * @param auxiliaryNote
+     * @return
+     */
+    private double getHalfstepsBetween(MeiElement principalNote, MeiElement auxiliaryNote) {
+        double halfsteps = 0.0;
+
+        String priAccid = getCurrentAccid(principalNote);
+        String auxAccid = getCurrentAccid(auxiliaryNote);
+
+        halfsteps = Helper.getHalfstepsBetween(principalNote.get("pname"), auxiliaryNote.get("pname"));
+        halfsteps = halfsteps + (12 * (Integer.parseInt(auxiliaryNote.get("oct")) - Integer.parseInt(principalNote.get("oct"))));
+
+        halfsteps = halfsteps - Helper.accidString2decimal(priAccid);
+        halfsteps = halfsteps + Helper.accidString2decimal(auxAccid);
+
+        return halfsteps;
+    }
+
+    /**
+     * returns the current accid for the note. If note has no accid, the measure's accid (with fallback to the current key) will be returned.
+     * @param note
+     */
+    private String getCurrentAccid(MeiElement note) {
+        if(note.has("accid"))
+            return note.get("accid");
+
+        String accid = "";
+        if(currentAccids.containsKey(note.get("oct")) && currentAccids.get(note.get("oct")).containsKey(note.get("pname"))) {
+            accid = currentAccids.get(note.get("oct")).get(note.get("pname"));
+        }
+        else if(currentKey.containsKey(note.get("pname"))) {
+            accid = currentKey.get(note.get("pname"));
+        }
+
+        return accid;
+    }
+
+    /**
+     * sets the accid(.ges) Attribute for having these information explicitly in the resulting ornaments ornamentExpansion notes. This simplifies OrnamentExpansion merging.
+     * @param note
+     * @param accid
+     * @param setAccidToo
+     */
+    private static void setAccidGes(MeiElement note, String accid, boolean setAccidToo) {
+        if(accid == null)
+            return;
+        if(setAccidToo) {
+            note.set("accid", accid);
+        }
+        note.set("accid.ges", accid);
+    }
+
+    /**
+     * flattens the XML tree of a graceGrp to a simple list of graceGrps. Elements like notes not being in a graceGrp will get grouped ("grp1 note1 note2 grp2 note3" will become "grp1 grp3 grp2 grp4").
+     * @param element
+     * @return
+     */
+    private ArrayList<MeiElement> flattenGraceGrp(MeiElement element) {
+        ArrayList<MeiElement> children = element.getChildrenAsMeiElements();
+        ArrayList<MeiElement> graceGrps = new ArrayList<>();
+
+        MeiElement graceGrp = new MeiElement("graceGrp");
+        for (MeiElement child : children) {
+            if(child.getName().equals("graceGrp") || child.getName().equals("beam")) {
+                if(!graceGrp.getChildren().isEmpty()) {
+                    graceGrps.add(graceGrp);
+                    graceGrp = new MeiElement("graceGrp");
+                }
+
+                graceGrps.addAll(flattenGraceGrp(child));                   // flatten all children
+                continue;
+            }
+
+            graceGrp.appendChild(child);                                    // add element to a new graceGrp, if it was not a graceGrp itself
+        }
+
+        if(!graceGrp.getChildren().isEmpty()) {
+            graceGrps.add(graceGrp);
+        }
+        return graceGrps;
+    }
+
+    /**
+     * appends the ornamentExpansion directly after the principal Note in the MEI (the original MEI file stays untouched).
+     * @param principalNote
+     * @param ornamentExpansion
+     * @param atEnd
+     */
+    private void appendOrnamentExpansion(MeiElement principalNote, OrnamentExpansion ornamentExpansion, boolean atEnd) {
+        OrnamentExpansion existingOrnamentExpansion = ornamentExpansions.get(principalNote.getId());
+        if(existingOrnamentExpansion == null) {
+            ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
+            Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement().getElement(), principalNote.getElement());
+            return;
+        }
+
+        if(atEnd) {
+            existingOrnamentExpansion.append(ornamentExpansion);
+        }
+        else {
+            ornamentExpansion.append(existingOrnamentExpansion);
+            existingOrnamentExpansion.getOrnamentExpansionElement().removeParent();
+
+            ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
+            Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement().getElement(), principalNote.getElement());
+        }
+    }
+
+    /**
+     * resolves combined ornaments (ornaments for the same principle note, that are written on top of each other) that refer with "prev"/"next" (hopefully) to each other
+     * @param ornament
+     * @return
+     */
+    private boolean checkForCombinedOrnaments(MeiElement ornament) {
+        if(prevOrnams.contains(ornament.getId())) // I found myself, so I have been expanded already
+            return true;
+        if(ornament.has("prev")) {
+            String prevId = ornament.get("prev");
+            if(!prevOrnams.contains(prevId)) {
+                nextOrnams.put(ornament.getId(), ornament.getElement()); // remember me for later, do not expandOrnaments me right now
+                return true;
+            }
+        }
+        if(ornament.has("next")) {
+            prevOrnams.add(ornament.getId()); // put me in the list, that the next one does not wait for me
+        }
+        return false;
+    }
+
+    /**
+     * checks and processes already occurred "next" ornament, if the just processed ornament has a "next".
+     * @param ornament
+     */
+    private void checkForNextOrnament(MeiElement ornament) {
+        if(nextOrnams.get(ornament.getId()) != null)
+            nextOrnams.remove(ornament.getId());
+        // if someone is already waiting for me
+        Element nextOrnam = nextOrnams.get(ornament.get("next"));
+        if(nextOrnam != null) {
+            nextOrnams.remove(ornament.get("next")); // remove myself if I was in there
+            expandOrnamentsElement(nextOrnam);
+        }
+    }
+
+    /**
+     * creates the lookUp table with ornament descriptions. Names for lookUp are identical to getOrnamentFullName results
+     */
+    private void createOrnamentLookUp() throws IOException, NullPointerException {
+        this.ornamentLookup = new HashMap<String, List<String>>();
+
+        // open input stream
+        InputStream is = getClass().getResourceAsStream("/resources/ornaments.dict");
+        if(is == null)
+            return;
+
+        // initialize the readers with the input stream
+        InputStreamReader ir = new InputStreamReader(is);
+        BufferedReader br = new BufferedReader(ir);
+
+        // build (key, value) pairs where the key is the ornament name string and value is the List of alterations and add them to the dict map
+        List<String> ornamentNames = new ArrayList<String>();
+        boolean isCollectingNames = false;
+        for(String line = br.readLine(); line != null; line = br.readLine()) {  // read all the lines in *.dict
+            if (line.isEmpty()                                                  // an empty line
+                    || (line.charAt(0) == '%'))                                     // this is a comment line
+                continue;                                                       // ignore it
+
+            if (line.charAt(0) == '#') {                                        // this is an ornament name line, it specifies that all further lines will be associated with it until an ornament line is read
+                if(!isCollectingNames) {                                        // if it is the first line with an ornament name
+                    isCollectingNames = true;
+                    ornamentNames.clear();
+                }
+                ornamentNames.add(line.substring(1).trim());                 // add the ornamentName, delete any spaces in the string beforehand so that "# trill " -> "trill"
+
+                continue;
+            }
+            else if (isCollectingNames) {                                       // if I am currently collecting names, but I have read a line that is not an ornament name line, I am now collecting alterations for the current ornament name
+                isCollectingNames = false;
+            }
+
+            if(!line.isEmpty()) {
+                ArrayList<String> alterationEntries = new ArrayList<String>(Arrays.asList(line.split(" "))); // split the line by " " to get the single alteration entries, e.g. "1 0 -1" -> ["1", "0", "-1"]
+
+                for (String ornamentName : ornamentNames) {                      // for all currently collected ornament names, add the alteration to the lookUp table
+                    ornamentLookup.put(ornamentName, new ArrayList<String>());
+                    List<String> lookUp = ornamentLookup.get(ornamentName);
+                    for(String alterationEntry : alterationEntries) {            // cleanUp the alteration entries, e.g. ["", "1 "] -> ["1"]
+                        if(!alterationEntry.isEmpty())
+                            lookUp.add(alterationEntry.trim());
+                    }
+                }
+            }
+        }
+
+        // close readers and input stream
+        br.close();
+        ir.close();
+        is.close();
+    }
+}
