@@ -473,7 +473,7 @@ class DataObject extends Group {
                 Group item = this.makeMenuItem(leftItems[i], 180 + (((float)(leftItems.length - 1) * itemHeight) / 2) - (i * itemHeight), itemHeight, innerRadius, outerRadius);
                 menu.getChildren().add(item);
             }
-            String[] rightItems = {"to MSM & MPM", "to MusicXML", "to MIDI", "to Audio", "Score Rendering", "XSL Transform", "expand Ornaments"};
+            String[] rightItems = {"to MSM & MPM", "to MusicXML", "to MIDI", "to Audio", "Score Rendering", "XSL Transform"};
             outerRadius = innerRadius + this.computeVisualLengthOfLongestString(rightItems);
             for (int i = 0; i < rightItems.length; ++i) {
                 Group item = this.makeMenuItem(rightItems[i], -(((float)(rightItems.length - 1) * itemHeight) / 2) + (i * itemHeight), itemHeight, innerRadius, outerRadius);
@@ -899,23 +899,6 @@ class DataObject extends Group {
                     break;
 //                case "Close":
 //                    break;
-                case "expand Ornaments":
-                    this.menuItemInteractionGeneric(item, label, body, (MouseEvent mouseEvent) -> {
-                        Thread thread = new Thread(() -> {
-                            RotateTransition ani = this.startComputeAnimation();
-                            this.getWorkspace().getApp().getStatuspanel().setMessage("expanding Ornaments in MEI ...");
-                            Mei mei = ((Mei)this.getData()).expandOrnaments();   // do the conversion
-                            if (this.getWorkspace() != null) {                                       // it is possible that the data object has been removed from workspace in the meantime
-                                ArrayList<Object> lo = new ArrayList<>();                       // sort the msms and mpms in this list
-                                lo.add(mei);                               // add expanded mei
-                                this.addSeveralChildren(mouseEvent, lo);
-                                this.getWorkspace().getApp().getStatuspanel().setMessage("expanding Ornament in MEI: done.");
-                            }
-                            this.stopComputeAnimation(ani);
-                        });
-                        this.start(thread);
-                    });
-                    break;
                 case "to MSM & MPM":
                     this.menuItemInteractionGeneric(item, label, body, (MouseEvent mouseEvent) -> {
                         Thread thread = new Thread(() -> {
