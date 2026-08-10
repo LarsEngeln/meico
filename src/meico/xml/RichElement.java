@@ -29,7 +29,7 @@ public class RichElement {
      */
     public RichElement(Element element, boolean deepCopy) {
         if(deepCopy) {
-            this.element = Helper.cloneElement(element, true);
+            this.element = element.copy();
         }
         else this.element = element;
 
@@ -94,7 +94,7 @@ public class RichElement {
      * @return
      */
     public Element getClonedElement() {
-        return Helper.cloneElement(element, true);
+        return element.copy();
     }
 
     /**

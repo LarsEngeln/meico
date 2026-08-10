@@ -409,12 +409,11 @@ public class Helper {
     }
 
     /**
-     * create a deep(==true) copy of element e, or a flat (deep==false) copy of element e including its attributes but not its child elements
+     * create a flat copy of element e including its attributes but not its child elements
      * @param e
-     * @param deep
      * @return
      */
-    public static Element cloneElement(Element e, boolean deep) {
+    public static Element cloneElement(Element e) {
         if (e == null) return null;
 
         Element clone = new Element(e.getLocalName());
@@ -426,22 +425,7 @@ public class Helper {
             clone.addAttribute(att);
         }
 
-        if(deep) {
-            for(Element child : e.getChildElements()) {
-                clone.appendChild(Helper.cloneElement(child, deep));
-            }
-        }
-
         return clone;
-    }
-
-    /**
-     * create a flat copy of element e including its attributes but not its child elements
-     * @param e
-     * @return
-     */
-    public static Element cloneElement(Element e) {
-        return cloneElement(e, false);
     }
 
     /**
