@@ -199,7 +199,7 @@ public class MeiOrnamentExpander {
             MeiElement note = graceNotes.get(slur.get("startid"));
             if (note != null) {
                 String endid = slur.get("endid");
-                Element principalNoteElement = Helper.findSibling(element.getElement(), endid);
+                Element principalNoteElement = Helper.getFirstDescendantById(Helper.getParentElement(element.getElement()), endid);
                 if (principalNoteElement != null) {
                     principalNote = new MeiElement(principalNoteElement);
                     graceIsBefore.set(true);
@@ -209,7 +209,7 @@ public class MeiOrnamentExpander {
             note = graceNotes.get(slur.get("endid"));
             if (note != null) {
                 String startid = slur.get("startid");
-                Element principalNoteElement = Helper.findSibling(element.getElement(), startid);
+                Element principalNoteElement = Helper.getFirstDescendantById(Helper.getParentElement(element.getElement()), startid);
                 if (principalNoteElement != null) {
                     principalNote = new MeiElement(principalNoteElement);
                     graceIsBefore.set(false);
@@ -425,7 +425,7 @@ public class MeiOrnamentExpander {
             return;     // if the corresponding note cannot be identified
         startid = startid.replace("#", "");
 
-        Element principalNoteElement = Helper.findSibling(ornament.getElement(), startid);
+        Element principalNoteElement = Helper.getFirstDescendantById(Helper.getParentElement(ornament.getElement()), startid);
         if (principalNoteElement == null)
             return;     // if the corresponding note is not availabletart
         MeiElement principalNote = new MeiElement(principalNoteElement);

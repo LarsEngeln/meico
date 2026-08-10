@@ -51,8 +51,8 @@ public class Helper {
      * @param id
      * @return
      */
-    public static Element findChild(Element parent, String id) {
-        return findChild(parent, id, "id");
+    public static Element getFirstDescendantById(Element parent, String id) {
+        return getFirstDescendantByAttributeValue(parent, id, "id");
     }
 
     /**
@@ -62,32 +62,21 @@ public class Helper {
      * @param attribute
      * @return
      */
-    public static Element findChild(Element parent, String value, String attribute) {
+    public static Element getFirstDescendantByAttributeValue(Element parent, String value, String attribute) {
         LinkedList<Element> children = Helper.getAllChildElements(parent);
         for (int i = 0; i < children.size(); ++i) {
             Element el = children.get(i);
-            if(Helper.getAttribute(attribute, el) != null) {
-                String val = Helper.getAttributeValue(attribute, el);
-                if (val.equals(value))
-                    return el;
+            Attribute attr = Helper.getAttribute(attribute, el);
+            if((attr != null) && attr.getValue().equals(value)) {
+                return el;
             }
-            Element child = findChild(el, value, attribute);
+            Element child = getFirstDescendantByAttributeValue(el, value, attribute);
             if(child != null)
                 return child;
         }
         return null;
     }
-
-    /**
-     * find sibling of node by id
-     * @param node
-     * @param id
-     * @return
-     */
-    public static Element findSibling(Element node, String id) {
-        return Helper.findChild(Helper.getParentElement(node), id);
-    }
-
+    
     /**
      * get the first child of an xml element
      * @param ofThis
