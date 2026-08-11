@@ -968,8 +968,12 @@ public class Helper {
      * @param steps Number of steps that are shifted. 0 is no shift (unison) and thereby 7 is shifting an octave.
      */
     public static void shiftNoteDiatonicly(Element note, int steps) {
+        Attribute pname = note.getAttribute("pname");
+        if(pname == null)
+            return;
+
         List<String> names = Arrays.asList( "c", "d", "e", "f", "g", "a", "b" );
-        String noteName = note.getAttributeValue("pname").toLowerCase();
+        String noteName = pname.getValue().toLowerCase();
         int index = names.indexOf(noteName);
         int shift = (index + steps);
         int shiftedOctaves = (int) Math.floor((float)shift / 7.0F);     // floor down as the "0"-octave is [0..6]
