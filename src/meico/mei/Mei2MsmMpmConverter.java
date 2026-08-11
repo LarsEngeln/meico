@@ -2122,8 +2122,11 @@ public class Mei2MsmMpmConverter {
 
         // read the xml:id
         Attribute id = Helper.getAttribute("id", arpeg);
-        od.xmlId = Helper.addUUID(null);
-        od.correspondence = (id == null) ? null : id.getValue();;
+        if(id != null)
+            od.xmlId = id.getValue();
+        else
+            od.xmlId = "meico_" + UUID.randomUUID().toString();
+        od.correspondence = (id == null) ? null : id.getValue();
 
         // determine the note order
         int needsPostprocessing = 0;                                        // this will be set 1, if the note.order must be reordered with ascending pitch, and -1 for descending pitch
@@ -2192,7 +2195,6 @@ public class Mei2MsmMpmConverter {
                 this.arpeggiosToSort.add(new KeyValue<>(Helper.getAttribute("note.order", ornamentationMap.getElement(index)), needsPostprocessing > 0));    // store the note.order attribute and arpeggio direction for reordering during postprocessing
         }
         else {                                                                                      // there are staffs, hence, local ornament instruction
-            boolean multiIDs = false;
             String staffString = att.getValue();
             String[] staffs = staffString.split("\\s+");                                            // this creates an array of one or more integer strings (the staff numbers), they are separated by one or more whitespaces
 
@@ -2208,14 +2210,10 @@ public class Mei2MsmMpmConverter {
                 }
 
                 OrnamentData odd = od.clone();
-                if ((od.xmlId != null) && multiIDs)
-                    odd.xmlId = od.xmlId + "_meico_" + UUID.randomUUID().toString();
 
                 int index = ornamentationMap.addOrnament(odd);                                      // add it to the map
                 if (needsPostprocessing != 0)
                     this.arpeggiosToSort.add(new KeyValue<>(Helper.getAttribute("note.order", ornamentationMap.getElement(index)), needsPostprocessing > 0));    // store the note.order attribute and arpeggio direction for reordering during postprocessing
-
-                multiIDs = true;
             }
         }
     }
