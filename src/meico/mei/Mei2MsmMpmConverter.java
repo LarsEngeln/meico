@@ -2843,7 +2843,7 @@ public class Mei2MsmMpmConverter {
 
         // create ornament data
         OrnamentData od = new OrnamentData();
-        od.xmlId = Helper.addUUID(null);
+        od.xmlId = element.getId();
         od.correspondence = notes.get(0).getId();
         od.date = (Double) timingData.get(0);
         od.ornamentDefName = "tremolo";
@@ -2982,7 +2982,7 @@ public class Mei2MsmMpmConverter {
                 String segLabel = segmentLabels.get(s);
 
                 OrnamentData od = new OrnamentData();
-                od.xmlId = Helper.addUUID(null);
+                od.xmlId = elementId;
                 od.correspondence = elementId;
                 od.date = (Double) timingData.get(0);
                 od.ornamentDefName = segLabel;
@@ -3000,7 +3000,7 @@ public class Mei2MsmMpmConverter {
         else {
             // single ornament or non-instruction: create one OrnamentData as before
             OrnamentData od = new OrnamentData();
-            od.xmlId = Helper.addUUID(null);
+            od.xmlId = elementId;
             od.correspondence = elementId;
             od.date = (Double) timingData.get(0);
             od.ornamentDefName = ornamentName;
