@@ -2894,37 +2894,7 @@ public class Mei2MsmMpmConverter {
     }
 
     /**
-     * flattens the XML tree of a graceGrp to a simple list of graceGrps. Elements like notes not being in a graceGrp will get grouped ("grp1 note1 note2 grp2 note3" will become "grp1 grp3 grp2 grp4").
-     * @param element
-     * @return
-     */
-    private ArrayList<MeiElement> flattenGraceGrp(MeiElement element) {
-        ArrayList<MeiElement> children = element.getChildrenAsMeiElements();
-        ArrayList<MeiElement> graceGrps = new ArrayList<>();
-
-        MeiElement graceGrp = new MeiElement("graceGrp");
-        for (MeiElement child : children) {
-            if(child.getName().equals("graceGrp") || child.getName().equals("beam")) {
-                if(!graceGrp.getChildren().isEmpty()) {
-                    graceGrps.add(graceGrp);
-                    graceGrp = new MeiElement("graceGrp");
-                }
-
-                graceGrps.addAll(flattenGraceGrp(child));                   // flatten all children
-                continue;
-            }
-
-            graceGrp.appendChild(child);                                    // add element to a new graceGrp, if it was not a graceGrp itself
-        }
-
-        if(!graceGrp.getChildren().isEmpty()) {
-            graceGrps.add(graceGrp);
-        }
-        return graceGrps;
-    }
-
-    /**
-     * process ornaments like trills, turns, graceGrps, ..
+     * process ornaments like trills, turns, graceGrps, .. that are provided by a (generated) supplied into ornamentData
      * @param xmlElement
      */
     private void processOrnament(Element xmlElement) {
@@ -2932,97 +2902,52 @@ public class Mei2MsmMpmConverter {
         if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
             return;                                                         // stop processing it right now
 
-        ArrayList<MeiElement> graceGrps = new ArrayList<>();
         MeiElement element = new MeiElement(xmlElement, true);
-        String ornamentName = "";
+        if(!element.getName().equals("supplied") || !element.has("corresp"))
+            return;
 
+        ArrayList<MeiElement> graceGrps = new ArrayList<>();
+        String ornamentName = "ornam";
         String elementId = element.getId();
-        boolean isInstruction = false;
         ArrayList<String> segmentLabels = new ArrayList<>();
 
-        if(element.getName().equals("supplied")) {
+        if(element.has("label"))
             ornamentName = element.get("label");
-            ArrayList<MeiElement> children = element.getChildrenAsMeiElements();
-            graceGrps.addAll(children);                                 // by definition each child is a graceGrp
 
-            elementId = element.get("corresp").replace("#", "").trim();
-            Element principal = this.allNotesAndChords.get(elementId);
-            timingData.set(0, Double.parseDouble(principal.getAttributeValue("date")));
+        ArrayList<MeiElement> children = element.getChildrenAsMeiElements();
+        graceGrps.addAll(children); // by definition each child is a graceGrp
 
-            isInstruction = true;
+        // get the principal
+        elementId = element.get("corresp").replace("#", "").trim();
+        Element principal = this.allNotesAndChords.get(elementId);
+        timingData.set(0, Double.parseDouble(principal.getAttributeValue("date")));
 
-            // collect segment labels from graceGrp children
-            for (MeiElement child : children) {
-                String label = child.get("label");
-                if (label != null && !label.isEmpty())
-                    segmentLabels.add(label);
-            }
-        }
-        else if(element.getName().equals("graceGrp") || element.getName().equals("note") || element.getName().equals("chord")) {
-            MeiElement graceGrp = new MeiElement("graceGrp");
-            if(element.getName().equals("note") || element.getName().equals("chord")) {
-                graceGrp.set("grace", element.get("grace"));
-                graceGrp.appendChild(element);
-            }
-            else {
-                graceGrp = element;
-            }
-
-            ornamentName = graceGrp.get("grace");
-            if(ornamentName == null || (!ornamentName.equals("acc") && ! ornamentName.equals("unacc")))
-                ornamentName = "acc";
-            ornamentName = "grace " + ornamentName;
-
-            if(graceGrp.getFirstChildByName("graceGrp") == null && graceGrp.getFirstChildByName("beam") == null)
-                graceGrps.add(graceGrp);
-            else {
-                graceGrps.addAll(flattenGraceGrp(graceGrp));
-            }
+        // preserve per-segment labels so combined expansions can be split again
+        for (MeiElement child : children) {
+            String label = child.get("label");
+            if (label != null && !label.isEmpty())
+                segmentLabels.add(label);
         }
 
-        // if we have multiple segments (from a combined ornament expansion), create separate OrnamentData per segment
-        if (isInstruction && segmentLabels.size() > 1 && graceGrps.size() == segmentLabels.size()) {
-            // groupId removed – ornaments at the same date are now grouped implicitly by date in OrnamentationMap
+        int segmentCount = graceGrps.size();
 
-            for (int s = 0; s < graceGrps.size(); s++) {
-                MeiElement graceGrp = graceGrps.get(s);
-                String segLabel = segmentLabels.get(s);
+        // create one ornamentData per ornament (graceGrp)
+        for (int s = 0; s < segmentCount; s++) {
+            MeiElement graceGrp = graceGrps.get(s);
+            String correspId = graceGrp.get("corresp");
 
-                OrnamentData od = new OrnamentData();
-                od.xmlId = elementId;
-                od.correspondence = elementId;
-                od.date = (Double) timingData.get(0);
-                od.ornamentDefName = segLabel;
-                od.scale = 0.0;
-                od.notes = new ArrayList<>();
-                od.noteOrder = new ArrayList<>();
-
-                for (MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
-                    addMeiNoteToOrnamentData(elem, od);
-                }
-                od.noteOrder.add("|");
-                addToOrnamentationMap(xmlElement, od);
-            }
-        }
-        else {
-            // single ornament or non-instruction: create one OrnamentData as before
             OrnamentData od = new OrnamentData();
-            od.xmlId = elementId;
+            od.xmlId = correspId != null ? correspId : UUID.randomUUID().toString();
             od.correspondence = elementId;
             od.date = (Double) timingData.get(0);
-            od.ornamentDefName = ornamentName;
+            od.ornamentDefName = segmentLabels.get(s);
             od.scale = 0.0;
             od.notes = new ArrayList<>();
-            od.noteOrder = new ArrayList<String>();
+            od.noteOrder = new ArrayList<>();
 
-            for (MeiElement graceGrp : graceGrps) {
-                for(MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
-                    addMeiNoteToOrnamentData(elem, od);
-                }
-                od.noteOrder.add("|");
-            }
-            if(!graceGrps.isEmpty()) {
-                od.noteOrder.remove(od.noteOrder.size() - 1);
+
+            for (MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
+                addMeiNoteToOrnamentData(elem, od);
             }
 
             addToOrnamentationMap(xmlElement, od);

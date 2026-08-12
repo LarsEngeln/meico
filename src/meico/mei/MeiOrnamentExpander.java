@@ -470,6 +470,7 @@ public class MeiOrnamentExpander {
     private OrnamentExpansion createOrnamentExpansion(String ornamentName, MeiElement principalNote, MeiElement ornament) {
         OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
         ornamentExpansion.addCorrespondence(principalNote); // sets the corresponds of the OrnamentExpansion to the ornament, as the ornament has a correspondence to the principalNote via "startid"
+        ornamentExpansion.getGroupElement().set("corresp", ornament.getId());
 
         String delayed = ornament.get("delayed");
         if(delayed == null || delayed.equals("false"))
