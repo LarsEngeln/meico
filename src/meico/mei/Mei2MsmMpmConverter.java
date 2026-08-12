@@ -2856,7 +2856,7 @@ public class Mei2MsmMpmConverter {
         for (MeiElement chord : chords) {
             od.noteOrder.add("[");
             for(MeiElement note : chord.getChildrenAsMeiElements("note")) {
-                MsmElement msmNote = MeiNote2MsmNote(new MeiElement(note.getElement()));
+                MsmElement msmNote = meiNote2MsmNote(new MeiElement(note.getElement()));
                 if (msmNote != null) {
                     //Helper.pname2midi(msmNote.getPitch().getPname());
                     msmNote.set("interval.chromatic", 0.0);
@@ -3034,7 +3034,7 @@ public class Mei2MsmMpmConverter {
             return;
         }
 
-        MsmElement msmNote = MeiNote2MsmNote(new MeiElement(elem.getElement()));
+        MsmElement msmNote = meiNote2MsmNote(new MeiElement(elem.getElement()));
         if (msmNote != null) {
             if(elem.has("intm")) {
                 String intm = elem.get("intm");
@@ -3777,7 +3777,7 @@ public class Mei2MsmMpmConverter {
         }
     }
 
-    private MsmElement MeiNote2MsmNote(MeiElement meiNote) {
+    private MsmElement meiNote2MsmNote(MeiElement meiNote) {
         double date = this.getMidiTime();
 
         MsmElement msmNote = new MsmElement("note");
@@ -3830,7 +3830,7 @@ public class Mei2MsmMpmConverter {
         this.processArtic(note);                                                // if the note has attributes artic.ges or artic, this method call will make sure that the corresponding MPM articulations are generated
 
         Element s = null;
-        MsmElement msmElement = MeiNote2MsmNote(new MeiElement(note));
+        MsmElement msmElement = meiNote2MsmNote(new MeiElement(note));
         if(msmElement != null) {
             s = msmElement.getElement();
         }
