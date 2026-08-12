@@ -2785,6 +2785,10 @@ public class Mei2MsmMpmConverter {
         }
     }
 
+    /**
+     * Process MEI tremolo elements and expand them into ornament data.
+     * @param trem
+     */
     private void processTrem(Element trem) {
         ArrayList<Object> timingData = this.computeControlEventTiming(trem, this.currentPart);
         if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
@@ -2795,6 +2799,7 @@ public class Mei2MsmMpmConverter {
         ArrayList<MeiElement> chords = new ArrayList<>();
 
 
+        // collect all notes, plus collect them as chords while preserving the original chords
         for(MeiElement elem : element.getChildrenAsMeiElements()) {
             if(elem.getName().equals("note")) {
                 notes.add(elem);
@@ -2818,14 +2823,17 @@ public class Mei2MsmMpmConverter {
         if(notes.isEmpty())
             return;
 
+        // processChords to get the 'normalized' attributes, as all chords are treated
         MeiElement allNotesChord = new MeiElement("chord");
         notes.forEach(allNotesChord::appendChild);
         this.processChord(allNotesChord.getElement());
 
+        // tremolandi attributes: https://music-encoding.org/guidelines/v5/content/cmn.html#cmnTrem
         String unitdurAttr  = element.get("unitdur");
         String numAttr      = element.get("num");
         String stemModAttr  = element.get("stem.mod");
 
+        // MEI exposes the tremolo rate via different attributes depending on the notation style
         int repetitions = -1;
         if (unitdurAttr != null) {
             int unitdur = Integer.parseInt(unitdurAttr);
@@ -2852,13 +2860,13 @@ public class Mei2MsmMpmConverter {
         od.noteOrder = new ArrayList<String>();
         od.repetitions = repetitions;
 
+        // encode the (alternating) tremolo pattern into the noteOrder sequence
         od.noteOrder.add("|:");
         for (MeiElement chord : chords) {
             od.noteOrder.add("[");
             for(MeiElement note : chord.getChildrenAsMeiElements("note")) {
                 MsmElement msmNote = meiNote2MsmNote(new MeiElement(note.getElement()));
                 if (msmNote != null) {
-                    //Helper.pname2midi(msmNote.getPitch().getPname());
                     msmNote.set("interval.chromatic", 0.0);
                     msmNote.remove("pitchname");
                     msmNote.remove("accidentals");
@@ -2873,7 +2881,6 @@ public class Mei2MsmMpmConverter {
         od.noteOrder.add(":|");
 
         addToOrnamentationMap(notes.get(0).getElement(), od);
-
     }
 
     /**
@@ -3051,7 +3058,7 @@ public class Mei2MsmMpmConverter {
     }
 
     /**
-     * helper method to get the string representation of a barline repeat sign
+     * helper method to get the ornament noteorder/dictionary string representation of a MEI barline repeat sign
      * @param elem
      * @return
      */

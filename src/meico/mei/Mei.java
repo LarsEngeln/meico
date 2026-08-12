@@ -247,7 +247,8 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
     }
 
     /**
-     * adds expansions for ornaments with graceNotes for the audio rendering only
+     * adds expansions for ornaments with graceNotes to 'this' (no copy is created)
+     * @return 'this' Mei for chaining
      */
     public Mei expandOrnaments() {
         if(areOrnamentsExpanded)

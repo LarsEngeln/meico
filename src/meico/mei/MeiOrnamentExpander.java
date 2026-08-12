@@ -299,8 +299,11 @@ public class MeiOrnamentExpander {
      * @param element
      */
     private void expandGrace(MeiElement element) {
+        // collect the grace notes
         Map<String, MeiElement> notes = this.collectAllNotes(element);
         AtomicBoolean graceIsBefore = new AtomicBoolean(true);
+
+        // get principal note and remember whether the grace is before it
         MeiElement principalNote = getCorrespondingNoteOfGrace(element, notes, graceIsBefore);
         if(principalNote == null)
             return;
@@ -308,26 +311,33 @@ public class MeiOrnamentExpander {
         String graceType = element.get("grace");
         if(graceType == null || !graceType.equals("unacc"))
             graceType = "acc";
+
+        // build the ornament label from grace type and placement
         String ornamentName = "grace " + graceType;
         if(!graceIsBefore.get()) {
             ornamentName = ornamentName + " delayed";
         }
-
+        // use fioritura when the principal target is a space
         if(principalNote.getElement().getLocalName().equals("space")) {
             ornamentName = "fioritura";
         }
 
         OrnamentExpansion ornamentExpansion = new OrnamentExpansion();
-        ornamentExpansion.addCorrespondence(principalNote); // sets the corresponds of the OrnamentExpansion to the ornament, as the ornament has a correspondence to the principalNote via "startid"
+        // link the generated expansion to the original grace element
+        ornamentExpansion.addCorrespondence(principalNote);
+        ornamentExpansion.getGroupElement().set("corresp", element.getId());
         ornamentExpansion.setLabel(ornamentName);
 
         boolean principalIsNote = principalNote.getName().equals("note");
         String dur = notes.values().iterator().next().get("dur");
 
+        // use the principal note for interval mapping, or the last note when the target is a chord
         MeiElement halfStepsTo = principalNote;
         if(!principalIsNote) {
            halfStepsTo = notes.get(notes.size() - 1);
         }
+
+        // copy the notes in encounter order and stamp their halfstep distance to the target note
         for (MeiElement n : notes.values()) {
             MeiElement note = new MeiElement(n.getElement(), true);
             note.setId(note.getId() + "_grace");
@@ -336,6 +346,7 @@ public class MeiOrnamentExpander {
                 double halfsteps = getHalfstepsBetween(halfStepsTo, note);
                 note.set("intm", String.valueOf(halfsteps) + "hs");
             }
+
             ornamentExpansion.addElement(note);
         }
 
@@ -480,6 +491,7 @@ public class MeiOrnamentExpander {
         boolean isFirstLower = lowerAccid != null;
 
         for (String alterationEntry : alterations) {
+            // keep barline markers in the ornament stream so repeats survive the expansion
             if(alterationEntry.equals("|:")) {
                 MeiElement repeat = new MeiElement("barLine");
                 repeat.set("form", "rptstart");
@@ -499,11 +511,13 @@ public class MeiOrnamentExpander {
                 continue;
             }
 
+            // turn each alteration step into a concrete note copy of the principal
             MeiElement note = new MeiElement("note");
             note.set("dur", String.valueOf(noteDuration));
             note.set("oct", principalNote.get("oct"));
             note.set("pname", principalNote.get("pname"));
 
+            // move the note diatonically first, then handle the accidental in the following
             int alteration = Integer.parseInt(alterationEntry);
             Helper.shiftNoteDiatonicly(note.getElement(), alteration);
 
@@ -511,6 +525,7 @@ public class MeiOrnamentExpander {
             if(!accid.isEmpty())
                 note.set("accid", accid);                   // explicitly set the accid
 
+            // use the given principal, upper, or lower accidental for the first note of each kind
             switch (alteration) {
                 case 0:
                     setAccidGes(note, principalAccid, isFirstPrincipal);
@@ -526,6 +541,7 @@ public class MeiOrnamentExpander {
                     break;
             }
 
+            // store the distance from the principal note
             double halfsteps = getHalfstepsBetween(principalNote, note);
             note.set("intm", String.valueOf(halfsteps)+"hs");
 
@@ -591,9 +607,9 @@ public class MeiOrnamentExpander {
     }
 
     /**
-     * flattens the XML tree of a graceGrp to a simple list of graceGrps. Elements like notes not being in a graceGrp will get grouped ("grp1 note1 note2 grp2 note3" will become "grp1 grp3 grp2 grp4").
-     * @param element
-     * @return
+     * flattens a nested hierarchy of a graceGrp's to a plain list of all occurring graceGrps. Elements like single notes not being in a graceGrp will get (grace)grouped ("grp1 note1 note2 grp2 note3" will become "grp1 grp3 grp2 grp4").
+     * @param element graceGrp with nested graceGrp's
+     * @return list of graceGrp
      */
     private ArrayList<MeiElement> flattenGraceGrp(MeiElement element) {
         ArrayList<MeiElement> children = element.getChildrenAsMeiElements();

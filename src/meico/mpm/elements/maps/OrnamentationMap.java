@@ -659,10 +659,6 @@ public class OrnamentationMap extends GenericMap {
             getOrnamentEntries().add(new OrnamentEntry(od, chordSequence));
         }
 
-        // Phase 2: group all entries implicitly by date – all ornaments on the same date
-        // are distributed proportionally across the principal note's duration.
-        // atEnd ornaments are anchored at the end of the note.
-        // TODO: not per date, but via principalNote ID, although it is processed per layer
         return addedNotes;
     }
 
