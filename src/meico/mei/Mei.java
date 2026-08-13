@@ -1,5 +1,6 @@
 package meico.mei;
 
+import meico.mei.ornament.OrnamentExpander;
 import meico.mpm.Mpm;
 import meico.msm.Msm;
 import meico.musicxml.MusicXml;
@@ -255,7 +256,7 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
             return this;
 
         areOrnamentsExpanded = true;
-        return (new MeiOrnamentExpander()).expandOrnaments(this);
+        return (new OrnamentExpander()).expandOrnaments(this);
     }
 
     /**

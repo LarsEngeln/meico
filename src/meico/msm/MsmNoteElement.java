@@ -2,7 +2,6 @@ package meico.msm;
 
 import meico.mei.Helper;
 import meico.xml.RichElement;
-import nu.xom.Attribute;
 import nu.xom.Element;
 
 import java.util.*;
@@ -11,13 +10,13 @@ import java.util.*;
  * This class is an object-oriented wrapper of some Helper function. It is meant as easy access of MSM element data.
  * @author Lars Engeln
  */
-public class MsmElement extends RichElement {
+public class MsmNoteElement extends RichElement {
 
     /**
      * constructor from XML element
      * @param element
      */
-    public MsmElement(Element element) {
+    public MsmNoteElement(Element element) {
         super(element);
     }
 
@@ -26,14 +25,14 @@ public class MsmElement extends RichElement {
      * @param element
      * @param deepCopy
      */
-    public MsmElement(Element element, boolean deepCopy) {
+    public MsmNoteElement(Element element, boolean deepCopy) {
         super(element, deepCopy);
     }
     /**
      * constructor from local name
      * @param localName
      */
-    public MsmElement(String localName)  {
+    public MsmNoteElement(String localName)  {
         super(localName);
     }
 
@@ -84,7 +83,7 @@ public class MsmElement extends RichElement {
      * @param note
      * @return
      */
-    public boolean isSameNote(MsmElement note) {
+    public boolean isSameNote(MsmNoteElement note) {
         if (note == null) return false;
         if (!this.getNoteName().equals(note.getNoteName())) return false;
         if (!this.getOctave().equals(note.getOctave())) return false;
@@ -95,10 +94,10 @@ public class MsmElement extends RichElement {
      * returns all children as MsmElements
      * @return
      */
-    public ArrayList<MsmElement> getChildrenAsMsmElements() {
+    public ArrayList<MsmNoteElement> getChildrenAsMsmElements() {
         LinkedList<Element> elements = Helper.getAllChildElements(this.element);
-        ArrayList<MsmElement> children = new ArrayList<>();
-        elements.forEach(elem -> children.add(new MsmElement(elem)));
+        ArrayList<MsmNoteElement> children = new ArrayList<>();
+        elements.forEach(elem -> children.add(new MsmNoteElement(elem)));
         return children;
     }
 }

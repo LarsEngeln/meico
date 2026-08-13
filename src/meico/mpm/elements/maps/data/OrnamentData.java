@@ -2,7 +2,7 @@ package meico.mpm.elements.maps.data;
 
 import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
-import meico.msm.MsmElement;
+import meico.msm.MsmNoteElement;
 import meico.supplementary.KeyValue;
 import nu.xom.Attribute;
 import nu.xom.Element;
@@ -122,7 +122,7 @@ public class OrnamentData {
      * @param lastNote the last note of the previous chord sequence, used for temporal spread; if null, the temporal spread is applied as if there is no preceding note
      * @return computed spaced start and length (relative in ticks) or null
      */
-    public KeyValue<Double, Double> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmElement lastNote) {
+    public KeyValue<Double, Double> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmNoteElement lastNote) {
         KeyValue<Double, Double> result = null;
         if (this.ornamentDef == null)
             return result;

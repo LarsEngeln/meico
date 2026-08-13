@@ -3,7 +3,7 @@ package meico.mpm.elements.styles.defs;
 import meico.mei.Helper;
 import meico.mpm.Mpm;
 import meico.mpm.elements.TemporalValue;
-import meico.msm.MsmElement;
+import meico.msm.MsmNoteElement;
 import meico.supplementary.KeyValue;
 import nu.xom.Attribute;
 import nu.xom.Element;
@@ -393,7 +393,7 @@ public class OrnamentDef extends AbstractDef {
          * @param lastNote of latest ornament in which we might render into
          * @return computed spaced start and length (relative in ticks) or null
          */
-        public KeyValue<Double, Double> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmElement lastNote) {
+        public KeyValue<Double, Double> apply(ArrayList<ArrayList<Element>> chordSequence, Double effectiveFrameStart, Double effectiveFrameLength, MsmNoteElement lastNote) {
             if (chordSequence.size() < 1)   // if there is no chord/note or just one
                 return null;     // we don't do anything
 
@@ -463,7 +463,7 @@ public class OrnamentDef extends AbstractDef {
                     // check if we render into an existing note (occurs if another ornament is already applied)
 
                     for(Element n : chordSequence.get(i)) {
-                        MsmElement note = new MsmElement(n);
+                        MsmNoteElement note = new MsmNoteElement(n);
                         if(note.get("midi.pitch").equals(lastNote.get("midi.pitch"))) {
                             note.removeParent();
                             removedNote = true;

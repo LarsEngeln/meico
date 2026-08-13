@@ -1,28 +1,26 @@
 package meico.mei;
 
 import meico.Meico;
+import meico.mei.ornament.OrnamentProcessor;
 import meico.midi.InstrumentsDictionary;
 import meico.mpm.Mpm;
 import meico.mpm.elements.Part;
 import meico.mpm.elements.Performance;
 import meico.mpm.elements.maps.*;
 import meico.mpm.elements.maps.data.DynamicsData;
-import meico.mpm.elements.maps.data.OrnamentData;
 import meico.mpm.elements.maps.data.TempoData;
 import meico.mpm.elements.metadata.Author;
 import meico.mpm.elements.metadata.Comment;
 import meico.mpm.elements.metadata.RelatedResource;
 import meico.mpm.elements.styles.ArticulationStyle;
 import meico.mpm.elements.styles.DynamicsStyle;
-import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.TempoStyle;
 import meico.mpm.elements.styles.defs.ArticulationDef;
 import meico.mpm.elements.styles.defs.DynamicsDef;
-import meico.mpm.elements.styles.defs.OrnamentDef;
 import meico.mpm.elements.styles.defs.TempoDef;
 import meico.msm.Goto;
 import meico.msm.Msm;
-import meico.msm.MsmElement;
+import meico.msm.MsmNoteElement;
 import meico.supplementary.KeyValue;
 import nu.xom.*;
 
@@ -36,7 +34,7 @@ import java.util.*;
  * @author Axel Berndt
  * @author Lars Engeln
  */
-public class Mei2MsmMpmConverter {
+public class Mei2MsmMpmConverter implements Context, NoteProcessor {
     private Mei mei = null;                         // the MEI to be converted
     private boolean ignoreExpansions = false;       // set this true to have a 1:1 conversion of MEI to MSM without the rearrangement that MEI's expansion elements produce
     private boolean cleanup = true;                 // set true to return a clean msm file or false to keep all the crap from the conversion
@@ -56,10 +54,11 @@ public class Mei2MsmMpmConverter {
     protected ArrayList<Element> tstamp2s = new ArrayList<>();          // mpm elements that will be terminated at a position in another measure indicated by attribute tstamp2
     protected ArrayList<Element> lyrics = new ArrayList<>();            // this is used to collect lyrics converted from mei syl elements to be added to an msm note
     protected HashMap<String, Element> allNotesAndChords = new HashMap<>(); // when converting a new mdiv this hashmap is created first to accelarate lookup for notes and chords via xml:id
-    protected ArrayList<KeyValue<Attribute, Boolean>> arpeggiosToSort = new ArrayList<>();  // for some arpeggios the note.order attribute must be sorted to get an up (true) or downwards (false) direction; this is done during postprocessing of mdiv elements when we know the notes' pitch values (also available via allNotesAndChords, attribute pnum); this list holds all attributes note.order to be reordered and the corresponding direction (true=up, false=down)
     protected Performance currentPerformance = null;                    // a quick link to the current movement's current performance
     protected List<Msm> movements = new ArrayList<>();                  // this list holds the resulting Msm objects after performing MEI-to-MSM conversion
     protected List<Mpm> performances = new ArrayList<>();               // this list holds the resulting Mpm objects after performing MEI-to-MSM conversion
+
+    protected OrnamentProcessor ornamentProcessor = new OrnamentProcessor(this, this);
 
     /**
      * constructor with default settings
@@ -82,6 +81,33 @@ public class Mei2MsmMpmConverter {
         this.dontUseChannel10 = dontUseChannel10;                        // set the flag that says whether channel 10 (midi drum channel) shall be used or not; it is already dont here, at the mei2msm conversion, because the msm should align with the midi file later on
         this.ignoreExpansions = ignoreExpansions;
         this.cleanup = cleanup;
+    }
+
+    /**
+     * returns currentPart
+     * @return
+     */
+    @Override
+    public Element getCurrentPart() {
+        return currentPart;
+    }
+
+    /**
+     * returns currentPerformance
+     * @return
+     */
+    @Override
+    public Performance getCurrentPerformance() {
+        return currentPerformance;
+    }
+
+    /**
+     * returns allNotesAndChords
+     * @return
+     */
+    @Override
+    public HashMap<String, Element> getAllNotesAndChords() {
+        return allNotesAndChords;
     }
 
     /**
@@ -203,7 +229,7 @@ public class Mei2MsmMpmConverter {
                     continue;
 
                 case "arpeg":                                                   // indicates that the notes of a chord are to be performed successively rather than simultaneously
-                    this.processArpeg(e);
+                    this.ornamentProcessor.processArpeg(e);
                     continue;
 
                 case "artic":                                                   // an indication of how to play a note or chord
@@ -231,7 +257,7 @@ public class Mei2MsmMpmConverter {
                     continue;
 
                 case "bTrem":
-                    this.processTrem(e);                                       // bTrems are treated as chords
+                    this.ornamentProcessor.processTrem(e);                                       // bTrems are treated as chords
                     continue;                                                     // process child notes
 
                 case "caesura":                                                 // TODO: relevant for expressive performance
@@ -301,7 +327,7 @@ public class Mei2MsmMpmConverter {
                     continue;                                                   // TODO: relevant for expressive performance
 
                 case "fTrem":
-                    this.processTrem(e);                                        // fTrems are treated as chords
+                    this.ornamentProcessor.processTrem(e);                                        // fTrems are treated as chords
                     continue;                                                      // process child notes
 
                 case "gap":
@@ -548,8 +574,7 @@ public class Mei2MsmMpmConverter {
                     break;                                                      // process its contents
 
                 case "supplied":                                                // contains material supplied by the transcriber or editor in place of text which cannot be read, either because of physical damage or loss in the original or because it is illegible for any reason
-                    if(this.checkIfOrnament(e)) {
-                        this.processOrnament(e);
+                    if(this.ornamentProcessor.processOrnament(e)) {
                         continue;
                     }
                     break;                                                      // process its content
@@ -711,31 +736,7 @@ public class Mei2MsmMpmConverter {
         }
         this.convert(mdiv);                         // process the content of the mdiv
 
-        // postprocess arpeggios, namely reorder the note.order attribute now that we have a proper pitch value for each note
-        for (KeyValue<Attribute, Boolean> arpeggioNoteOrder : this.arpeggiosToSort) {                // for each note.order attribute to be reordered
-            ArrayList<KeyValue<String, Double>> notePitchList = new ArrayList<>();
-            for (String noteId : arpeggioNoteOrder.getKey().getValue().replaceAll("#", "").split("\\s+")) { // deserialize the note.order string to a list of note IDs
-                Element note = this.allNotesAndChords.get(noteId);
-                if (note == null)
-                    continue;
-
-                Attribute pitchAtt = Helper.getAttribute("pnum", note);
-                if (pitchAtt == null)
-                    continue;
-
-                double pitch = Double.parseDouble(pitchAtt.getValue());
-                notePitchList.add(new KeyValue<>(noteId, pitch));
-            }
-
-            // sort the notes according to the indicated order
-            notePitchList.sort((n1, n2) -> (int) ((arpeggioNoteOrder.getValue()) ? Math.signum(n1.getValue() - n2.getValue()) : Math.signum(n2.getValue() - n1.getValue())));
-
-            // concatenate the note IDs in a string and set new attribute value for note.order
-            String noteIdsString = "";
-            for (KeyValue<String, Double> noteId : notePitchList)
-                noteIdsString = noteIdsString.concat(" #" + noteId.getKey().trim().replace("#", ""));
-            arpeggioNoteOrder.getKey().setValue(noteIdsString.trim());
-        }
+        this.ornamentProcessor.postProcessArpeg();
 
         // finalize the tempoMap
         GenericMap globalTempoMap = this.currentPerformance.getGlobal().getDated().getMap(Mpm.TEMPO_MAP);
@@ -1961,7 +1962,7 @@ public class Mei2MsmMpmConverter {
      *
      * @param chord an mei chord, bTrem or fTrem element
      */
-    private void processChord(Element chord) {
+    public void processChord(Element chord) {
         if (this.currentPart == null)                                // if we are not within a part, we don't know where to assign the chord; hence we skip its processing
             return;
 
@@ -2095,125 +2096,6 @@ public class Mei2MsmMpmConverter {
                     Helper.addToMap(clone, tsMap);                                                      // insert in global tupletSpanMap
                     this.addLayerAttribute(clone);                                               // add an attribute that indicates the layer (this will only take effect if the element has a @startid as this will cause the element to be placed within a layer during preprocessing)
                 }
-            }
-        }
-    }
-
-    /**
-     * process an mei arpeg element
-     * @param arpeg
-     */
-    private void processArpeg(Element arpeg) {
-        // check if this is really an arpeggio
-        Attribute order = Helper.getAttribute("order", arpeg);              // get order attribute
-        if ((order != null) && order.getValue().trim().equals("nonarp"))    // if no arpeggio
-            return;                                                         // cancel
-
-        // compute the timing or get the necessary data to compute the end date later on
-        ArrayList<Object> timingData = this.computeControlEventTiming(arpeg, this.currentPart);
-        if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
-            return;                                                         // stop processing it right now
-
-        // create ornament data
-        OrnamentData od = new OrnamentData();
-        od.date = (Double) timingData.get(0);
-        od.ornamentDefName = "arpeggio";
-        od.scale = 0.0;
-
-        // read the xml:id
-        Attribute id = Helper.getAttribute("id", arpeg);
-        if(id != null)
-            od.xmlId = id.getValue();
-        else
-            od.xmlId = "meico_" + UUID.randomUUID().toString();
-        od.correspondence = (id == null) ? null : id.getValue();
-
-        // determine the note order
-        int needsPostprocessing = 0;                                        // this will be set 1, if the note.order must be reordered with ascending pitch, and -1 for descending pitch
-        Attribute plist = Helper.getAttribute("plist", arpeg);
-        if (plist == null) {                                                // if we have no plist that specifies the note sequence
-            if (order != null) {                                            // if we have an order attribute (otherwise we leave the note.order attribute away which is equal to "ascending pitch")
-                od.noteOrder = new ArrayList<>();
-                if (order.getValue().trim().equals("down"))                 // if it is specified down
-                    od.noteOrder.add("descending pitch");                   // set the note.order attribute
-                else                                                        // in any other case (order ="up" or any unknown value)
-                    od.noteOrder.add("ascending pitch");                    // set note.order="ascending pitch"
-            }
-        } else {                                                            // if we have a plist
-            od.noteOrder = new ArrayList<>();
-            for (String ref : plist.getValue().trim().split("\\s+")) {      // collect the references (sorting will come later)
-                Element e = this.allNotesAndChords.get(ref.replace("#", ""));    // get the MEI element behind the reference
-                if (e == null)                                              // if it is neither a note nore a chord
-                    continue;                                               // ignore it
-                if (e.getLocalName().equals("note")) {                      // if it is a note
-                    od.noteOrder.add(ref);                                  // add its reference to the note order list
-                    continue;
-                }
-                if (e.getLocalName().equals("chord")) {                     // if it is a chord, we retrieve its notes and add them to the note order list in the sequence they are defined in the chord
-                    for (Node node : e.query("descendant::*[local-name()='note']")) {  // get all note elements in the chord
-                        Element note = (Element) node;                      // process it as an element
-                        Attribute noteId = Helper.getAttribute("id", note); // get the note's id
-                        if (noteId == null) {                               // if the note has no id, generate one
-                            noteId = new Attribute("xml:id", "http://www.w3.org/XML/1998/namespace", "meico_" + UUID.randomUUID().toString());
-                            this.allNotesAndChords.put(noteId.getValue(), note);
-                            note.addAttribute(noteId);
-                        }
-                        od.noteOrder.add("#" + noteId.getValue());          // add the id to the note order list
-                    }
-                }
-            }
-
-            // the sequence of the notes must be reordered to ensure that it matches with @order="up/down"; this will be done at the end of the mdiv conversion when all notes are converted and have a proper @pnum/@midi.pitch for each note
-            if (order != null) {                                            // seems like a specific order is desired
-                if (order.getValue().trim().equals("down"))                 // if it should be with descending pitch
-                    needsPostprocessing = -1;                               // set the indication - will be processed later
-                else if (order.getValue().trim().equals("up"))              // if ascending pitch
-                    needsPostprocessing = 1;                                // set the indication - will be processed later
-            }
-        }
-
-        // make sure that the arpeggio is defined in a global ornamentation style of name "MEI export"
-        OrnamentationStyle ornamentationStyle = (OrnamentationStyle) this.currentPerformance.getGlobal().getHeader().getStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export"); // get the global ornamentationSyles/styleDef element
-        if (ornamentationStyle == null)                                                                                                                                         // if there is none
-            ornamentationStyle = (OrnamentationStyle) this.currentPerformance.getGlobal().getHeader().addStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export");                // create one
-        if (ornamentationStyle.getDef(od.ornamentDefName) == null)
-            ornamentationStyle.addDef(OrnamentDef.createDefaultOrnamentDef(od.ornamentDefName));
-
-        // parse the staff attribute (space separated staff numbers)
-        OrnamentationMap ornamentationMap;
-        Attribute att = arpeg.getAttribute("part");                                                                         // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
-        if (att == null)                                                                                                    // if no part attribute
-            att = arpeg.getAttribute("staff");                                                                              // find the staffs that this is associated to
-        if ((att == null) || att.getValue().isEmpty() || att.getValue().equals("%all")) {                                   // if no part or staff association is defined treat it as a global instruction
-            ornamentationMap = (OrnamentationMap) this.currentPerformance.getGlobal().getDated().getMap(Mpm.ORNAMENTATION_MAP);      // get the global ornamentationMap
-            if (ornamentationMap == null) {                                                                                                 // if there is no global ornamentationMap
-                ornamentationMap = (OrnamentationMap) this.currentPerformance.getGlobal().getDated().addMap(Mpm.ORNAMENTATION_MAP);  // create one
-                ornamentationMap.addStyleSwitch(0.0, "MEI export");                                                                         // set its start style reference
-            }
-            int index = ornamentationMap.addOrnament(od);                                           // add it to the map
-            if (needsPostprocessing != 0)
-                this.arpeggiosToSort.add(new KeyValue<>(Helper.getAttribute("note.order", ornamentationMap.getElement(index)), needsPostprocessing > 0));    // store the note.order attribute and arpeggio direction for reordering during postprocessing
-        }
-        else {                                                                                      // there are staffs, hence, local ornament instruction
-            String staffString = att.getValue();
-            String[] staffs = staffString.split("\\s+");                                            // this creates an array of one or more integer strings (the staff numbers), they are separated by one or more whitespaces
-
-            for (String staff : staffs) {                                                           // go through all the part numbers
-                Part part = this.currentPerformance.getPart(Integer.parseInt(staff));        // find that part in the performance data structure
-                if (part == null)                                                                   // if not found
-                    continue;                                                                       // continue with the next
-
-                ornamentationMap = (OrnamentationMap) part.getDated().getMap(Mpm.ORNAMENTATION_MAP);// get the part's ornamentationMap
-                if (ornamentationMap == null) {                                                     // if it has none so far
-                    ornamentationMap = (OrnamentationMap) part.getDated().addMap(Mpm.ORNAMENTATION_MAP);    // create it
-                    ornamentationMap.addStyleSwitch(0.0, "MEI export");                             // set the style reference
-                }
-
-                OrnamentData odd = od.clone();
-
-                int index = ornamentationMap.addOrnament(odd);                                      // add it to the map
-                if (needsPostprocessing != 0)
-                    this.arpeggiosToSort.add(new KeyValue<>(Helper.getAttribute("note.order", ornamentationMap.getElement(index)), needsPostprocessing > 0));    // store the note.order attribute and arpeggio direction for reordering during postprocessing
             }
         }
     }
@@ -2781,292 +2663,6 @@ public class Mei2MsmMpmConverter {
             }
             else {                                              // otherwise the element had no tie attribute
                 note.addAttribute(new Attribute("tie", "t"));   // hence, we add an terminal tie attribute
-            }
-        }
-    }
-
-    /**
-     * Process MEI tremolo elements and expand them into ornament data.
-     * @param trem
-     */
-    private void processTrem(Element trem) {
-        ArrayList<Object> timingData = this.computeControlEventTiming(trem, this.currentPart);
-        if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
-            return;
-        MeiElement element = new MeiElement(trem);
-
-        ArrayList<MeiElement> notes = new ArrayList<>();
-        ArrayList<MeiElement> chords = new ArrayList<>();
-
-
-        // collect all notes, plus collect them as chords while preserving the original chords
-        for(MeiElement elem : element.getChildrenAsMeiElements()) {
-            if(elem.getName().equals("note")) {
-                notes.add(elem);
-                MeiElement chord = new MeiElement("chord");
-                chord.appendChild(new MeiElement(elem.getElement(), true));
-                chords.add(chord);
-            }
-            else if(elem.getName().equals("chord")) {
-                ArrayList<MeiElement> chordNotes = elem.getChildrenAsMeiElements("note");
-                if(chordNotes.isEmpty())
-                    continue;
-                notes.addAll(chordNotes);
-                MeiElement chord = new MeiElement("chord");
-                for (MeiElement chordNote : chordNotes) {
-                    chord.appendChild(new MeiElement(chordNote.getElement(), true));
-                }
-                chords.add(chord);
-            }
-        }
-
-        if(notes.isEmpty())
-            return;
-
-        // processChords to get the 'normalized' attributes, as all chords are treated
-        MeiElement allNotesChord = new MeiElement("chord");
-        notes.forEach(allNotesChord::appendChild);
-        this.processChord(allNotesChord.getElement());
-
-        // tremolandi attributes: https://music-encoding.org/guidelines/v5/content/cmn.html#cmnTrem
-        String unitdurAttr  = element.get("unitdur");
-        String numAttr      = element.get("num");
-        String stemModAttr  = element.get("stem.mod");
-
-        // MEI exposes the tremolo rate via different attributes depending on the notation style
-        int repetitions = -1;
-        if (unitdurAttr != null) {
-            int unitdur = Integer.parseInt(unitdurAttr);
-            int dur = Integer.parseInt(notes.get(0).get("dur"));
-            repetitions = unitdur / dur - 1; // "- 1" as the note is played once regulary + "repetitions"
-        }
-        else if (numAttr != null) {
-            repetitions = Integer.parseInt(numAttr) - 1; // "- 1" as the note is played once regulary + "repetitions"
-        }
-        else if (stemModAttr != null) {
-            int stemMod = Integer.parseInt(stemModAttr);
-            int dur = Integer.parseInt(notes.get(0).get("dur"));
-            repetitions = stemMod / dur - 1; // "- 1" as the note is played once regulary + "repetitions"
-        }
-
-        // create ornament data
-        OrnamentData od = new OrnamentData();
-        od.xmlId = element.getId();
-        od.correspondence = notes.get(0).getId();
-        od.date = (Double) timingData.get(0);
-        od.ornamentDefName = "tremolo";
-        od.scale = 0.0;
-        od.notes = new ArrayList<>();
-        od.noteOrder = new ArrayList<String>();
-        od.repetitions = repetitions;
-
-        // encode the (alternating) tremolo pattern into the noteOrder sequence
-        od.noteOrder.add("|:");
-        for (MeiElement chord : chords) {
-            od.noteOrder.add("[");
-            for(MeiElement note : chord.getChildrenAsMeiElements("note")) {
-                MsmElement msmNote = meiNote2MsmNote(new MeiElement(note.getElement()));
-                if (msmNote != null) {
-                    msmNote.set("interval.chromatic", 0.0);
-                    msmNote.remove("pitchname");
-                    msmNote.remove("accidentals");
-                    msmNote.remove("octave");
-                    od.notes.add(msmNote.getElement());
-                }
-
-                od.noteOrder.add("#" + note.getId());
-            }
-            od.noteOrder.add("]");
-        }
-        od.noteOrder.add(":|");
-
-        addToOrnamentationMap(notes.get(0).getElement(), od);
-    }
-
-    /**
-     * check if the element is a supplied generated by meico which is a preprocessed ornament
-     * @param xmlElement
-     * @return
-     */
-    private boolean checkIfOrnament(Element xmlElement) {
-        MeiElement element = new MeiElement(xmlElement);
-        return element.getName().equals("supplied") && element.has("reason") && element.get("reason").startsWith("ornament expansion");
-    }
-
-    /**
-     * process ornaments like trills, turns, graceGrps, .. that are provided by a (generated) supplied into ornamentData
-     * @param xmlElement
-     */
-    private void processOrnament(Element xmlElement) {
-        ArrayList<Object> timingData = this.computeControlEventTiming(xmlElement, this.currentPart);
-        if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
-            return;                                                         // stop processing it right now
-
-        MeiElement element = new MeiElement(xmlElement, true);
-        if(!element.getName().equals("supplied") || !element.has("corresp"))
-            return;
-
-        ArrayList<MeiElement> graceGrps = new ArrayList<>();
-        String ornamentName = "ornam";
-        String elementId = element.getId();
-        ArrayList<String> segmentLabels = new ArrayList<>();
-
-        if(element.has("label"))
-            ornamentName = element.get("label");
-
-        ArrayList<MeiElement> children = element.getChildrenAsMeiElements();
-        graceGrps.addAll(children); // by definition each child is a graceGrp
-
-        // get the principal
-        elementId = element.get("corresp").replace("#", "").trim();
-        Element principal = this.allNotesAndChords.get(elementId);
-        timingData.set(0, Double.parseDouble(principal.getAttributeValue("date")));
-
-        // preserve per-segment labels so combined expansions can be split again
-        for (MeiElement child : children) {
-            String label = child.get("label");
-            if (label != null && !label.isEmpty())
-                segmentLabels.add(label);
-        }
-
-        int segmentCount = graceGrps.size();
-
-        // create one ornamentData per ornament (graceGrp)
-        for (int s = 0; s < segmentCount; s++) {
-            MeiElement graceGrp = graceGrps.get(s);
-            String correspId = graceGrp.get("corresp");
-
-            OrnamentData od = new OrnamentData();
-            od.xmlId = correspId != null ? correspId : UUID.randomUUID().toString();
-            od.correspondence = elementId;
-            od.date = (Double) timingData.get(0);
-            od.ornamentDefName = segmentLabels.get(s);
-            od.scale = 0.0;
-            od.notes = new ArrayList<>();
-            od.noteOrder = new ArrayList<>();
-
-
-            for (MeiElement elem : graceGrp.getChildrenAsMeiElements()) {
-                addMeiNoteToOrnamentData(elem, od);
-            }
-
-            addToOrnamentationMap(xmlElement, od);
-        }
-    }
-
-    /**
-     * adds elem to od by converting the MEI note to MPM note and updating note.order
-     * @param elem MEI note
-     * @param od
-     */
-    private void addMeiNoteToOrnamentData(MeiElement elem, OrnamentData od) {
-        if (elem.getName().equals("barLine")) {
-            od.noteOrder.add(getRptString(elem));
-            od.repetitions = -1; // if we have a barline, we got a repetitive moment, that is going to be guessed ("-1") while "perform"
-            return;
-        }
-
-        MsmElement msmNote = meiNote2MsmNote(new MeiElement(elem.getElement()));
-        if (msmNote != null) {
-            if(elem.has("intm")) {
-                String intm = elem.get("intm");
-                intm = intm.replaceAll("hs", "").trim();
-                msmNote.set("interval.chromatic", intm);
-            }
-            msmNote.remove("pitchname");
-            msmNote.remove("accidentals");
-            msmNote.remove("octave");
-            od.notes.add(msmNote.getElement());
-        }
-
-        od.noteOrder.add("#" + elem.getId());
-    }
-
-    /**
-     * helper method to get the ornament noteorder/dictionary string representation of a MEI barline repeat sign
-     * @param elem
-     * @return
-     */
-    private String getRptString(MeiElement elem) {
-        String rptStr = "";
-        switch(elem.get("form")) {
-            case "rptstart":
-                rptStr = "|:";
-                break;
-            case "rptboth":
-                rptStr = ":|:";
-
-                break;
-            case "rptend":
-                rptStr = ":|";
-                break;
-        }
-        return rptStr;
-    }
-
-
-    /**
-     * helper method to add the ornamentation data to the correct ornamentationMap(s) in MPM
-     * and to make sure that the corresponding styleDef is defined in MPM
-     * @param el
-     * @param od
-     */
-    private void addToOrnamentationMap(Element el, OrnamentData od) {               // TODO: use in processArpeg
-        // make sure that the ornamentationStyle is defined in a global ornamentation style of name "MEI export"
-        OrnamentationStyle ornamentationStyle = (OrnamentationStyle) this.currentPerformance.getGlobal().getHeader().getStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export"); // get the global ornamentationSyles/styleDef element
-        if (ornamentationStyle == null)                                                                                                                                         // if there is none
-            ornamentationStyle = (OrnamentationStyle) this.currentPerformance.getGlobal().getHeader().addStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export");                // create one
-        if (ornamentationStyle.getDef(od.ornamentDefName) == null)
-            ornamentationStyle.addDef(OrnamentDef.createDefaultOrnamentDef(od.ornamentDefName));
-
-        // parse the staff attribute (space separated staff numbers)
-        OrnamentationMap ornamentationMap;
-        Attribute att = el.getAttribute("part");                                                                            // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
-
-        if (att == null)                                                                                                       // if no part attribute
-            att = el.getAttribute("staff");                                                                                 // find the staffs that this is associated to
-
-        String elName = el.getLocalName();
-        if(att == null && (elName.equals("supplied") || elName.equals("graceGrp") || elName.equals("note") || elName.equals("chord") || elName.equals("fTrem") || elName.equals("bTrem"))) {    // search staff and get its "n"
-            Element parent = el;
-            do {
-                parent = Helper.getParentElement(parent);
-                if(parent != null && (parent.getLocalName().equals("staff") || parent.getLocalName().equals("part")))
-                    att = parent.getAttribute("n");
-            } while (att == null && parent != null && !parent.getLocalName().equals("part"));
-        }
-
-        if ((att == null) || att.getValue().isEmpty() || att.getValue().equals("%all")) {                                      // if no part or staff association is defined treat it as a global instruction
-            ornamentationMap = (OrnamentationMap) this.currentPerformance.getGlobal().getDated().getMap(Mpm.ORNAMENTATION_MAP);      // get the global ornamentationMap
-            if (ornamentationMap == null) {                                                                                          // if there is no global ornamentationMap
-                ornamentationMap = (OrnamentationMap) this.currentPerformance.getGlobal().getDated().addMap(Mpm.ORNAMENTATION_MAP);  // create one
-                ornamentationMap.addStyleSwitch(0.0, "MEI export");                                                   // set its start style reference
-            }
-            int index = ornamentationMap.addOrnament(od);                                               // add it to the map
-        }
-        else {                                                                                          // there are staffs, hence, local ornament instruction
-            boolean multiIDs = false;
-            String staffString = att.getValue();
-            String[] staffs = staffString.split("\\s+");                                             // this creates an array of one or more integer strings (the staff numbers), they are separated by one or more whitespaces
-
-            for (String staff : staffs) {                                                               // go through all the part numbers
-                Part part = this.currentPerformance.getPart(Integer.parseInt(staff));                   // find that part in the performance data structure
-                if (part == null)                                                                       // if not found
-                    continue;                                                                           // continue with the next
-
-                ornamentationMap = (OrnamentationMap) part.getDated().getMap(Mpm.ORNAMENTATION_MAP);    // get the part's ornamentationMap
-                if (ornamentationMap == null) {                                                         // if it has none so far
-                    ornamentationMap = (OrnamentationMap) part.getDated().addMap(Mpm.ORNAMENTATION_MAP);// create it
-                    ornamentationMap.addStyleSwitch(0.0, "MEI export");                  // set the style reference
-                }
-
-                OrnamentData odd = od.clone();
-                if ((od.xmlId != null) && multiIDs)
-                    odd.xmlId = od.xmlId + "_meico_" + UUID.randomUUID().toString();
-
-                int index = ornamentationMap.addOrnament(odd);                                      // add it to the map
-
-                multiIDs = true;
             }
         }
     }
@@ -3709,10 +3305,10 @@ public class Mei2MsmMpmConverter {
         }
     }
 
-    private MsmElement meiNote2MsmNote(MeiElement meiNote) {
+    public MsmNoteElement meiNote2MsmNote(MeiNoteElement meiNote) {
         double date = this.getMidiTime();
 
-        MsmElement msmNote = new MsmElement("note");
+        MsmNoteElement msmNote = new MsmNoteElement("note");
         msmNote.setId(meiNote.getId());
         msmNote.set("date", date);           // compute the date of the note
 
@@ -3745,7 +3341,7 @@ public class Mei2MsmMpmConverter {
      * process an mei note element
      * @param note an mei note element
      */
-    private void processNote(Element note) {
+    public void processNote(Element note) {
         if (this.currentPart == null)                                    // if we are not within a part, we don't know where to assign the note; hence we skip its processing
             return;
 
@@ -3762,7 +3358,7 @@ public class Mei2MsmMpmConverter {
         this.processArtic(note);                                                // if the note has attributes artic.ges or artic, this method call will make sure that the corresponding MPM articulations are generated
 
         Element s = null;
-        MsmElement msmElement = meiNote2MsmNote(new MeiElement(note));
+        MsmNoteElement msmElement = meiNote2MsmNote(new MeiNoteElement(note));
         if(msmElement != null) {
             s = msmElement.getElement();
         }
@@ -4205,7 +3801,7 @@ public class Mei2MsmMpmConverter {
      * @param msmPartContext
      * @return an ArrayList of the following form (double date, Double endDate, Attribute tstamp2, Attribute endid), except for date every other entry can be null if no such data is present or applicable! The return value can also be null when the timing should better be computed on the basis of attribute startid, in that case this method does the repositioning of the event automatically and the invoking method should cancel this event's processing right now and get back to this event later on
      */
-    protected ArrayList<Object> computeControlEventTiming(Element event, Element msmPartContext) {
+    public ArrayList<Object> computeControlEventTiming(Element event, Element msmPartContext) {
         // read the tstamp or, if missing, process startid
         Attribute att = event.getAttribute("tstamp.ges");
         if (att == null) {
