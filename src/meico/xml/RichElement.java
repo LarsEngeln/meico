@@ -295,11 +295,12 @@ public class RichElement {
                 return (new RichElement(child)).get(attributeName);
             }
 
-            boolean ignore = false;
             for(String ignoredElementName : ignoredElementNames)
-                ignore = ignore || elementName.equals(ignoredElementName);
-            if(!ignore)
-                return (new RichElement(child).getFromChild(attributeName, ignoredElementNames));
+                if(elementName.equals(ignoredElementName)) {
+                    return null;
+                }
+
+            return (new RichElement(child).getFromChild(attributeName, ignoredElementNames));
         }
 
         return null;
