@@ -6,7 +6,7 @@ import nu.xom.Element;
 import java.util.*;
 
 /**
- * This class is an object-oriented wrapper of some Helper function. It is meant as easy access of MEI element data.
+ * This class is an object-oriented wrapper of some Helper function. It is meant as easy access of MEI element (e.g. notes) data.
  * @author Lars Engeln
  */
 public class MeiNoteElement extends RichElement {
@@ -53,12 +53,13 @@ public class MeiNoteElement extends RichElement {
      * @return value of attributeName (preferring ".ges") or null if this attribute is not set.
      */
     public String get(String attributeName) {
-        if(!has(attributeName) && !has(attributeName + ".ges"))
-            return getFromChild(attributeName, Arrays.asList("damage","del","sic"));
-
         if(has(attributeName + ".ges"))
             return Helper.getAttributeValue(attributeName + ".ges", this.element);
-        return Helper.getAttributeValue(attributeName, this.element);
+
+        if(has(attributeName))
+            return Helper.getAttributeValue(attributeName, this.element);
+
+        return getFromChild(attributeName, Arrays.asList("damage","del","sic"));
     }
 
     /**
