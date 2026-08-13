@@ -38,15 +38,6 @@ public class MsmNoteElement extends RichElement {
     }
 
     /**
-     * creates a new id for the element and assigns it to the element. The new id is generated using the Helper.addUUID function.
-     * @return
-     */
-    public String createNewId() {
-        this.id = Helper.addUUID(this.element, true, true);
-        return getId();
-    }
-
-    /**
      * returns the date
      * @return
      */

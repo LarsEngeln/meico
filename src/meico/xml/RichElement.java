@@ -79,7 +79,7 @@ public class RichElement {
      * @return
      */
     public String createNewId() {
-        this.id = Helper.addUUID(this.element, true);
+        this.id = Helper.addUUID(this.element, true, true);
         return getId();
     }
 
