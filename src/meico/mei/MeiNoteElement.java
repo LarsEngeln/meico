@@ -6,7 +6,7 @@ import nu.xom.Element;
 import java.util.*;
 
 /**
- * This class is an object-oriented wrapper of some Helper function. It is meant as easy access of MEI element (e.g. notes) data.
+ * This helper-class is an object-oriented wrapper of some `Helper` function. It is meant as easy access of MEI (note) element data without fully supporting all MEI features.
  * @author Lars Engeln
  */
 public class MeiNoteElement extends RichElement {
