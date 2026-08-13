@@ -213,7 +213,7 @@ public class RichElement {
      * @param child
      */
     public void appendChild(Element child) {
-        child.setNamespaceURI("http://www.music-encoding.org/ns/mei");
+        child.setNamespaceURI(this.element.getNamespaceURI());
         this.element.appendChild(child);
     }
     /**
