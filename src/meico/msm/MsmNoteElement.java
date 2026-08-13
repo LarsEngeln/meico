@@ -7,7 +7,7 @@ import nu.xom.Element;
 import java.util.*;
 
 /**
- * This class is an object-oriented wrapper of some Helper function. It is meant as easy access of MSM element data.
+ * This helper-class is an object-oriented wrapper of some `Helper` function. It is meant as easy access of MSM (note) element data without fully supporting all MSM features.
  * @author Lars Engeln
  */
 public class MsmNoteElement extends RichElement {
@@ -28,6 +28,7 @@ public class MsmNoteElement extends RichElement {
     public MsmNoteElement(Element element, boolean deepCopy) {
         super(element, deepCopy);
     }
+
     /**
      * constructor from local name
      * @param localName
@@ -52,7 +53,6 @@ public class MsmNoteElement extends RichElement {
     public Double getDate() {
         return getAsDouble("date");
     }
-
 
     /**
      * returns the pitchname

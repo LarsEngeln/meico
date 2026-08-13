@@ -132,8 +132,8 @@ public class RichElement {
         return null;
     }
     /**
-     * returns the value of attributeName as Double if the element has it. Hereby ".ges" (e.g. "accid.ges") is preferred.
-     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be search.
+     * returns the value of attributeName as Double. Hereby ".ges" (e.g. "accid.ges") is preferred.
+     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be searched.
      * @param attributeName
      * @return value of attributeName (preferring ".ges") or null if this attribute is not set.
      */
@@ -144,8 +144,8 @@ public class RichElement {
         return Double.valueOf(value);
     }
     /**
-     * returns the value of attributeName as Integer if the element has it. Hereby ".ges" (e.g. "accid.ges") is preferred.
-     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be search.
+     * returns the value of attributeName as Integer. Hereby ".ges" (e.g. "accid.ges") is preferred.
+     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be searched.
      * @param attributeName
      * @return value of attributeName (preferring ".ges") or null if this attribute is not set.
      */

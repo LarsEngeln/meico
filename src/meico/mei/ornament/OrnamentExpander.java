@@ -61,7 +61,7 @@ public class OrnamentExpander {
     /**
      * adds expanded readings for ornaments
      * @param mei the MEI to be expanded
-     * @result the expanded MEI
+     * @return the input MEI with the added ornament expansions
      */
     public Mei expandOrnaments(Mei mei) {
         if (mei == null) {
