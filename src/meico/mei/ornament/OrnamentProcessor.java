@@ -298,10 +298,9 @@ public class OrnamentProcessor {
             return false;
 
         ArrayList<Object> timingData = this.context.computeControlEventTiming(element.getElement(), this.context.getCurrentPart());
-        if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
-            return false;                                                         // stop processing it right now
+        if (timingData == null)                                                     // if the event has been repositioned in accordance to a startid attribute
+            return false;                                                           // stop processing it right now
 
-        ArrayList<MeiElementHelper> graceGrps = new ArrayList<>();
         String ornamentName = "ornam";
         String elementId = element.getId();
         ArrayList<String> segmentLabels = new ArrayList<>();
@@ -310,7 +309,7 @@ public class OrnamentProcessor {
             ornamentName = element.get("label");
 
         ArrayList<MeiElementHelper> children = element.getChildrenAsMeiElements();
-        graceGrps.addAll(children); // by definition each child is a graceGrp
+        ArrayList<MeiElementHelper> graceGrps = new ArrayList<>(children); // by definition each child is a graceGrp
 
         // get the principal
         elementId = element.get("corresp").replace("#", "").trim();
@@ -339,7 +338,6 @@ public class OrnamentProcessor {
             od.scale = 0.0;
             od.notes = new ArrayList<>();
             od.noteOrder = new ArrayList<>();
-
 
             for (MeiElementHelper elem : graceGrp.getChildrenAsMeiElements()) {
                 addMeiNoteToOrnamentData(elem, od);
@@ -421,23 +419,30 @@ public class OrnamentProcessor {
      */
     private void addToOrnamentationMap(MeiElementHelper element, OrnamentData data) {                   // TODO: use in processArpeg
         // make sure that the ornamentationStyle is defined in a global ornamentation style of name "MEI export"
-        OrnamentationStyle ornamentationStyle = (OrnamentationStyle) this.context.getCurrentPerformance().getGlobal().getHeader().getStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export"); // get the global ornamentationSyles/styleDef element
-        if (ornamentationStyle == null)                                                                                                                                         // if there is none
-            ornamentationStyle = (OrnamentationStyle) this.context.getCurrentPerformance().getGlobal().getHeader().addStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export");                // create one
+        OrnamentationStyle ornamentationStyle = (OrnamentationStyle) this.context.getCurrentPerformance()
+                .getGlobal().getHeader().getStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export");      // get the global ornamentationSyles/styleDef element
+        if (ornamentationStyle == null)                                                                                                                         // if there is none
+            ornamentationStyle = (OrnamentationStyle) this.context.getCurrentPerformance()
+                    .getGlobal().getHeader().addStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export");  // create one
         if (ornamentationStyle.getDef(data.ornamentDefName) == null)
             ornamentationStyle.addDef(OrnamentDef.createDefaultOrnamentDef(data.ornamentDefName));
 
         // parse the staff attribute (space separated staff numbers)
         OrnamentationMap ornamentationMap;
-        String attrVal = element.get("part");                                                                            // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
+        String attrVal = element.get("part");                                                           // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
 
-        if (attrVal == null)                                                                                                       // if no part attribute
-            attrVal = element.get("staff");                                                                                 // find the staffs that this is associated to
+        if (attrVal == null)                                                                            // if no part attribute
+            attrVal = element.get("staff");                                                             // find the staffs that this is associated to
 
         String elName = element.getName();
-        if(attrVal == null && (elName.equals("supplied") || elName.equals("graceGrp") || elName.equals("note") || elName.equals("chord") || elName.equals("fTrem") || elName.equals("bTrem"))) {    // search staff and get its "n"
+        if(attrVal == null && (elName.equals("supplied")
+                            || elName.equals("graceGrp")
+                            || elName.equals("note")
+                            || elName.equals("chord")
+                            || elName.equals("fTrem")
+                            || elName.equals("bTrem"))) {
             RichElement parent = element;
-            do {
+            do {                                                                                        // search staff and get its "n"
                 parent = parent.getParent();
                 if(parent != null && (parent.getName().equals("staff") || parent.getName().equals("part")))
                     attrVal = parent.get("n");
@@ -446,9 +451,9 @@ public class OrnamentProcessor {
 
         if ((attrVal == null) || attrVal.isEmpty() || attrVal.equals("%all")) {                         // if no part or staff association is defined treat it as a global instruction
             ornamentationMap = (OrnamentationMap) this.context.getCurrentPerformance().getGlobal().getDated().getMap(Mpm.ORNAMENTATION_MAP);      // get the global ornamentationMap
-            if (ornamentationMap == null) {                                                                                          // if there is no global ornamentationMap
+            if (ornamentationMap == null) {                                                             // if there is no global ornamentationMap
                 ornamentationMap = (OrnamentationMap) this.context.getCurrentPerformance().getGlobal().getDated().addMap(Mpm.ORNAMENTATION_MAP);  // create one
-                ornamentationMap.addStyleSwitch(0.0, "MEI export");                                                   // set its start style reference
+                ornamentationMap.addStyleSwitch(0.0, "MEI export");                      // set its start style reference
             }
             int index = ornamentationMap.addOrnament(data);                                             // add it to the map
         }
