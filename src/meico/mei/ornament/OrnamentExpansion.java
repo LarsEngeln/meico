@@ -11,11 +11,11 @@ import java.util.ArrayList;
  * @author Lars Engeln
  */
 public class OrnamentExpansion {
-    private MeiNoteElement ornamentExpansionElement;
-    private MeiNoteElement groupElement;
-    private ArrayList<MeiNoteElement> notes;
+    private MeiNoteElement ornamentExpansionElement;    // the MEI element that is added to store all ornaments of a note
+    private MeiNoteElement groupElement;                // the MEI element that groups a single ornament within the ornamentExpansionElement
+    private ArrayList<MeiNoteElement> notes;            // note pool of all ornaments needed to express these
 
-    private ArrayList<MeiNoteElement> correspondences;
+    private ArrayList<MeiNoteElement> correspondences;  // correspondences from the ornamentExpansionElement to other MEI elements
     private ArrayList<String> segmentLabels = new ArrayList<>();   // labels of individual ornament segments
 
     /**

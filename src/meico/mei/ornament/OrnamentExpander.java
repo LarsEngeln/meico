@@ -76,14 +76,18 @@ public class OrnamentExpander {
 
         this.mei = mei;
 
-        if (this.mei.isEmpty() || (this.mei.getMusic() == null) || (this.mei.getMusic().getFirstChildElement("body", this.mei.getMusic().getNamespaceURI()) == null))      // if no mei music data available
+        // if no mei music data available
+        if (        this.mei.isEmpty()
+                || (this.mei.getMusic() == null)
+                || (this.mei.getMusic().getFirstChildElement("body", this.mei.getMusic().getNamespaceURI()) == null))
             return mei;
 
-        Elements bodies = this.mei.getMusic().getChildElements("body", this.mei.getMusic().getNamespaceURI());  // get the list of body elements in the mei source
-        for (int b = 0; b < bodies.size(); ++b)                                 // for each body
-            this.expandOrnaments(bodies.get(b));                                        // convert each body to msm, the resulting Msms can then be found in this.movements
+        // get the list of body elements in the mei source
+        Elements bodies = this.mei.getMusic().getChildElements("body", this.mei.getMusic().getNamespaceURI());
+        for (int b = 0; b < bodies.size(); ++b)         // for each body
+            this.expandOrnaments(bodies.get(b));        // expand each body`s ornaments
 
-        for(Element element : nextOrnams.values()){  // do not forget someone, should never happen if MEI is well-defined
+        for(Element element : nextOrnams.values()){     // do not forget someone, should never happen if MEI is well-defined
             this.expandOrnamentsElement(element);
         }
         for(MeiNoteElement grace : currentGraces) {     // do not forget someone, expand graces of last measure
@@ -102,7 +106,7 @@ public class OrnamentExpander {
     private void expandOrnaments(Element root) {
         Elements es = root.getChildElements();                                  // all child elements of root
 
-        for (int i = 0; i < es.size(); ++i) {                                   // element beginHere traverses the mei tree
+        for (int i = 0; i < es.size(); ++i) {                                   // traverse the mei tree
             Element e = es.get(i);
 
             // process the element
@@ -111,19 +115,19 @@ public class OrnamentExpander {
                 case "trill":
                 case "mordent":
                 case "ornam":
-                    expandOrnamentsElement(e);
+                    expandOrnamentsElement(e);                                  // collect ornaments
                     continue;
-                case "graceGrp":
+                case "graceGrp":                                                // collect graces, fiorituras
                     MeiNoteElement graceGrp = new MeiNoteElement(e, false);
                     currentGraces.add(graceGrp);
                     break;
                 case "note":
                     MeiNoteElement note = new MeiNoteElement(e, false);
                     if(note.has("grace"))
-                        currentGraces.add(note);
+                        currentGraces.add(note);                                // collect graces
                     else
-                        currentNotes.put(note.getId(), note);
-                    String accid = note.get("accid");
+                        currentNotes.put(note.getId(), note);                   // if not a grace, collect notes
+                    String accid = note.get("accid");                           // collect accidentals
                     if(accid == null || accid.isEmpty())
                         break;
                     if(!currentAccids.containsKey(note.get("oct")))
@@ -133,22 +137,21 @@ public class OrnamentExpander {
                 case "chord":
                     MeiNoteElement chord = new MeiNoteElement(e, false);
                     if(chord.has("grace"))
-                        currentGraces.add(chord);
+                        currentGraces.add(chord);                               // collect graces
                     else
-                        currentNotes.put(chord.getId(), chord);
+                        currentNotes.put(chord.getId(), chord);                 // if not a grace, collect chords
+                    break;                                                      // process children of chord
+                case "accid":                                                   // is been processed via "note"
                     break;
-                case "accid":
-                    break;
-
-                case "keySig":
+                case "keySig":                                                  // switch to new key signature
                     currentKey = new HashMap<>();
                     break;
-                case "keyAccid":
+                case "keyAccid":                                                // collect all key accidentals
                     MeiNoteElement keyAccid = new MeiNoteElement(e);
                     currentKey.put(keyAccid.get("pname"), keyAccid.get("accid"));
                     continue;
-                case "measure":
-                    for(MeiNoteElement grace : currentGraces) {                // if we have graces, expand them before we process the next measure (as we needed to collect slurs before)
+                case "measure":                                                 // new measure begins, so old one has ended
+                    for(MeiNoteElement grace : currentGraces) {                 // if we have graces, expand them before we process the next measure (as we needed to collect slurs before)
                         expandGrace(grace);
                     }
                     currentMeasure  = new MeiNoteElement(e, false);
@@ -157,13 +160,13 @@ public class OrnamentExpander {
                     currentNotes    = new HashMap<>();
                     currentAccids   = new HashMap<>();
                     break;
-                case "slur":
+                case "slur":                                                    // need to collect slurs to check to which note a grace might be attached
                     MeiNoteElement slur = new MeiNoteElement(e, false);
                     currentSlurs.add(slur);
                     continue;
             }
 
-            this.expandOrnaments(e);
+            this.expandOrnaments(e);    // if breaked, process children
         }
 
     }
@@ -198,30 +201,31 @@ public class OrnamentExpander {
 
         ArrayList<MeiNoteElement> slurs = this.currentSlurs;
 
+        // check if grace note is slurred to/from a note
         for(MeiNoteElement slur : slurs) {
             MeiNoteElement note = graceNotes.get(slur.get("startid"));
-            if (note != null) {
+            if (note != null) {                             // if a slur start from a grace
                 String endid = slur.get("endid");
                 Element principalNoteElement = Helper.getFirstDescendantById(Helper.getParentElement(element.getElement()), endid);
-                if (principalNoteElement != null) {
+                if (principalNoteElement != null) {         // and if that slur ends on a note
                     principalNote = new MeiNoteElement(principalNoteElement);
-                    graceIsBefore.set(true);
-                    return principalNote;
+                    graceIsBefore.set(true);                // the grace is before its principal
+                    return principalNote;                   // and the principal has been found
                 }
-            }
+            }                                               // if the principal was not found:
             note = graceNotes.get(slur.get("endid"));
-            if (note != null) {
+            if (note != null) {                             // if a slur ends on a grace
                 String startid = slur.get("startid");
                 Element principalNoteElement = Helper.getFirstDescendantById(Helper.getParentElement(element.getElement()), startid);
-                if (principalNoteElement != null) {
+                if (principalNoteElement != null) {         // and if that slur started from a note
                     principalNote = new MeiNoteElement(principalNoteElement);
-                    graceIsBefore.set(false);
-                    return principalNote;
+                    graceIsBefore.set(false);               // grace is after its principal
+                    return principalNote;                   // and the principal has been found
                 }
             }
         }
 
-        // No slur found: walk siblings until a note or chord is found (or null)
+        // No slur found: walk siblings until possible correspondence (e.g. a note or chord) is found (or null)
         Element previousElement = Helper.getPreviousSiblingElement(element.getElement());
         while (previousElement != null
                 && !previousElement.getLocalName().equals("note")
@@ -244,9 +248,10 @@ public class OrnamentExpander {
 
         //TODO: resolve note from chord/beam ?
 
+        // now check all possibilities
         if (nextElement == null && previousElement == null) {
             graceIsBefore.set(true);
-            return null;
+            return null;            // no principal found, as no other elements in this measure
         }
         if (nextElement != null && previousElement == null) {
             principalNote = new MeiNoteElement(nextElement);
@@ -260,6 +265,7 @@ public class OrnamentExpander {
         }
 
         // if both != null
+        // prioritise a note over a rest, and a rest over a space
         if (nextElement.getLocalName().equals("rest") && previousElement.getLocalName().equals("rest")) {
             graceIsBefore.set(true);
             return null;
@@ -275,6 +281,7 @@ public class OrnamentExpander {
             return principalNote;
         }
 
+        // if we were left with two surrounding notes, check the "grace" attribute
         String graceType = element.getAttributeValue("grace");
         if(graceType == null)
             graceType = "";
@@ -290,6 +297,7 @@ public class OrnamentExpander {
             return principalNote;
         }
 
+        // if the "grace" attribute is not provided, prioritise a grace before a note over a grace after a note
         principalNote = new MeiNoteElement(nextElement);
         graceIsBefore.set(true);
         return principalNote;
@@ -353,10 +361,7 @@ public class OrnamentExpander {
             ornamentExpansion.addElement(note);
         }
 
-        if(graceIsBefore.get())
-            appendOrnamentExpansion(principalNote, ornamentExpansion, false);
-        else
-            appendOrnamentExpansion(principalNote, ornamentExpansion, true);
+        appendOrnamentExpansion(principalNote, ornamentExpansion, !graceIsBefore.get());
     }
 
     /**
@@ -441,7 +446,7 @@ public class OrnamentExpander {
 
         Element principalNoteElement = Helper.getFirstDescendantById(Helper.getParentElement(ornament.getElement()), startid);
         if (principalNoteElement == null)
-            return;     // if the corresponding note is not availabletart
+            return;     // if the corresponding note is not available
         MeiNoteElement principalNote = new MeiNoteElement(principalNoteElement);
 
         if(ornament.get("staff") == null && ornament.get("part") == null) {
@@ -476,17 +481,18 @@ public class OrnamentExpander {
         ornamentExpansion.getGroupElement().set("corresp", ornament.getId());
 
         String delayed = ornament.get("delayed");
-        if(delayed == null || delayed.equals("false"))
+        if(delayed == null || delayed.equals("false"))                  // check if ornament is delayed (to be spaced "at end")
             delayed = "";
         else
             delayed = " delayed";
         ornamentExpansion.setLabel(ornamentName + delayed);
 
-        List<String> alterations = ornamentLookup.get(ornamentName);
+        List<String> alterations = ornamentLookup.get(ornamentName);    // get alterations from dictionary
 
         int pnDur = Integer.parseInt(principalNote.get("dur"));
         int noteDuration = 32;
 
+        // collect ornament`s accidental denotions
         String principalAccid = getCurrentAccid(principalNote);
         String upperAccid = ornament.get("accidupper");
         String lowerAccid = ornament.get("accidlower");
@@ -644,9 +650,9 @@ public class OrnamentExpander {
      * appends the ornamentExpansion directly after the principal Note in the MEI (the original MEI file stays untouched).
      * @param principalNote
      * @param ornamentExpansion
-     * @param atEnd
+     * @param appendLast
      */
-    private void appendOrnamentExpansion(MeiNoteElement principalNote, OrnamentExpansion ornamentExpansion, boolean atEnd) {
+    private void appendOrnamentExpansion(MeiNoteElement principalNote, OrnamentExpansion ornamentExpansion, boolean appendLast) {
         OrnamentExpansion existingOrnamentExpansion = ornamentExpansions.get(principalNote.getId());
         if(existingOrnamentExpansion == null) {
             ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
@@ -654,7 +660,7 @@ public class OrnamentExpander {
             return;
         }
 
-        if(atEnd) {
+        if(appendLast) {
             existingOrnamentExpansion.append(ornamentExpansion);
         }
         else {

@@ -19,11 +19,21 @@ import nu.xom.Node;
 import java.util.ArrayList;
 import java.util.UUID;
 
+/**
+ * This class encapsulates the processing needed to convert ornaments from MEI to MSM/MPM.
+ * As Processor, it is used by the Mei2MsmMpmConverter, that delegates elements like trill, turn, mordent, ornam, arpeg, fTrem, bTrem.
+ */
 public class OrnamentProcessor {
     protected ArrayList<KeyValue<Attribute, Boolean>> arpeggiosToSort = new ArrayList<>();  // for some arpeggios the note.order attribute must be sorted to get an up (true) or downwards (false) direction; this is done during postprocessing of mdiv elements when we know the notes' pitch values (also available via getAllNotesAndChords(), attribute pnum); this list holds all attributes note.order to be reordered and the corresponding direction (true=up, false=down)
     private final Context context;
     private final NoteProcessor noteProcessor;
 
+    /**
+     * The OrnamentProcessor does need the current Context (esp. information of current accidentals and notes within a measure)
+     * and the noteProcessor, as chords can occur within e.g. a fTrem
+     * @param context
+     * @param noteProcessor
+     */
     public OrnamentProcessor(Context context, NoteProcessor noteProcessor) {
         this.context = context;
         this.noteProcessor = noteProcessor;
@@ -35,7 +45,7 @@ public class OrnamentProcessor {
      */
     public void processArpeg(Element arpeg) {
         // check if this is really an arpeggio
-        Attribute order = Helper.getAttribute("order", arpeg);              // get order attribute
+        Attribute order = Helper.getAttribute("order", arpeg);        // get order attribute
         if ((order != null) && order.getValue().trim().equals("nonarp"))    // if no arpeggio
             return;                                                         // cancel
 
@@ -71,7 +81,7 @@ public class OrnamentProcessor {
             }
         } else {                                                            // if we have a plist
             od.noteOrder = new ArrayList<>();
-            for (String ref : plist.getValue().trim().split("\\s+")) {      // collect the references (sorting will come later)
+            for (String ref : plist.getValue().trim().split("\\s+")) {   // collect the references (sorting will come later)
                 Element e = this.context.getAllNotesAndChords().get(ref.replace("#", ""));    // get the MEI element behind the reference
                 if (e == null)                                              // if it is neither a note nore a chord
                     continue;                                               // ignore it
@@ -123,9 +133,9 @@ public class OrnamentProcessor {
             int index = ornamentationMap.addOrnament(od);                                           // add it to the map
             if (needsPostprocessing != 0)
                 this.arpeggiosToSort.add(new KeyValue<>(Helper.getAttribute("note.order", ornamentationMap.getElement(index)), needsPostprocessing > 0));    // store the note.order attribute and arpeggio direction for reordering during postprocessing
-        } else {                                                                                      // there are staffs, hence, local ornament instruction
+        } else {                                                                                    // there are staffs, hence, local ornament instruction
             String staffString = att.getValue();
-            String[] staffs = staffString.split("\\s+");                                            // this creates an array of one or more integer strings (the staff numbers), they are separated by one or more whitespaces
+            String[] staffs = staffString.split("\\s+");                                         // this creates an array of one or more integer strings (the staff numbers), they are separated by one or more whitespaces
 
             for (String staff : staffs) {                                                           // go through all the part numbers
                 Part part = this.context.getCurrentPerformance().getPart(Integer.parseInt(staff));        // find that part in the performance data structure
@@ -135,7 +145,7 @@ public class OrnamentProcessor {
                 ornamentationMap = (OrnamentationMap) part.getDated().getMap(Mpm.ORNAMENTATION_MAP);// get the part's ornamentationMap
                 if (ornamentationMap == null) {                                                     // if it has none so far
                     ornamentationMap = (OrnamentationMap) part.getDated().addMap(Mpm.ORNAMENTATION_MAP);    // create it
-                    ornamentationMap.addStyleSwitch(0.0, "MEI export");                             // set the style reference
+                    ornamentationMap.addStyleSwitch(0.0, "MEI export");              // set the style reference
                 }
 
                 OrnamentData odd = od.clone();
@@ -148,7 +158,7 @@ public class OrnamentProcessor {
     }
 
     /**
-     * Postprocess arpeggios, namely reorder the note.order attribute now that we have a proper pitch value for each note
+     * Postprocesses arpeggios, namely reorder the note.order attribute now that we have a proper pitch value for each note
      */
     public void postProcessArpeg() {
         for(KeyValue<Attribute, Boolean> arpeggioNoteOrder :this.arpeggiosToSort)
