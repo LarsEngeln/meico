@@ -13,5 +13,5 @@ public interface Context {
     HashMap<String, Element> getAllNotesAndChords();
 
     ArrayList<Object> computeControlEventTiming(Element event, Element msmPartContext);
-    MsmNoteElement meiNote2MsmNote(MeiNoteElement meiNote);
+    MsmNoteElement meiNote2MsmNote(MeiElementHelper meiNote);
 }

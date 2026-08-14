@@ -229,7 +229,7 @@ public class Mei2MsmMpmConverter implements Context, NoteProcessor {
                     continue;
 
                 case "arpeg":                                                   // indicates that the notes of a chord are to be performed successively rather than simultaneously
-                    this.ornamentProcessor.processArpeg(e);
+                    this.ornamentProcessor.processArpeg(new MeiElementHelper(e));
                     continue;
 
                 case "artic":                                                   // an indication of how to play a note or chord
@@ -257,7 +257,7 @@ public class Mei2MsmMpmConverter implements Context, NoteProcessor {
                     continue;
 
                 case "bTrem":
-                    this.ornamentProcessor.processTrem(e);                                       // bTrems are treated as chords
+                    this.ornamentProcessor.processTrem(new MeiElementHelper(e));                                       // bTrems are treated as chords
                     continue;                                                     // process child notes
 
                 case "caesura":                                                 // TODO: relevant for expressive performance
@@ -327,7 +327,7 @@ public class Mei2MsmMpmConverter implements Context, NoteProcessor {
                     continue;                                                   // TODO: relevant for expressive performance
 
                 case "fTrem":
-                    this.ornamentProcessor.processTrem(e);                                        // fTrems are treated as chords
+                    this.ornamentProcessor.processTrem(new MeiElementHelper(e));                                        // fTrems are treated as chords
                     continue;                                                      // process child notes
 
                 case "gap":
@@ -574,7 +574,7 @@ public class Mei2MsmMpmConverter implements Context, NoteProcessor {
                     break;                                                      // process its contents
 
                 case "supplied":                                                // contains material supplied by the transcriber or editor in place of text which cannot be read, either because of physical damage or loss in the original or because it is illegible for any reason
-                    if(this.ornamentProcessor.processOrnament(e)) {
+                    if(this.ornamentProcessor.processOrnament(new MeiElementHelper(e, true))) {
                         continue;
                     }
                     break;                                                      // process its content
@@ -3305,7 +3305,7 @@ public class Mei2MsmMpmConverter implements Context, NoteProcessor {
         }
     }
 
-    public MsmNoteElement meiNote2MsmNote(MeiNoteElement meiNote) {
+    public MsmNoteElement meiNote2MsmNote(MeiElementHelper meiNote) {
         double date = this.getMidiTime();
 
         MsmNoteElement msmNote = new MsmNoteElement("note");
@@ -3358,7 +3358,7 @@ public class Mei2MsmMpmConverter implements Context, NoteProcessor {
         this.processArtic(note);                                                // if the note has attributes artic.ges or artic, this method call will make sure that the corresponding MPM articulations are generated
 
         Element s = null;
-        MsmNoteElement msmElement = meiNote2MsmNote(new MeiNoteElement(note));
+        MsmNoteElement msmElement = meiNote2MsmNote(new MeiElementHelper(note));
         if(msmElement != null) {
             s = msmElement.getElement();
         }

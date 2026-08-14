@@ -9,13 +9,13 @@ import java.util.*;
  * This helper-class is an object-oriented wrapper of some `Helper` function. It is meant as easy access of MEI (note) element data without fully supporting all MEI features.
  * @author Lars Engeln
  */
-public class MeiNoteElement extends RichElement {
+public class MeiElementHelper extends RichElement {
 
     /**
      * constructor from XML element
      * @param element
      */
-    public MeiNoteElement(Element element) {
+    public MeiElementHelper(Element element) {
         super(element);
     }
 
@@ -23,7 +23,7 @@ public class MeiNoteElement extends RichElement {
      * constructor from RichElement
      * @param element
      */
-    public MeiNoteElement(RichElement element) {
+    public MeiElementHelper(RichElement element) {
         super(element.getElement());
     }
 
@@ -32,7 +32,7 @@ public class MeiNoteElement extends RichElement {
      * @param element
      * @param deepCopy
      */
-    public MeiNoteElement(Element element, boolean deepCopy) {
+    public MeiElementHelper(Element element, boolean deepCopy) {
         super(element, deepCopy);
         setNamespace("http://www.music-encoding.org/ns/mei");
     }
@@ -41,7 +41,7 @@ public class MeiNoteElement extends RichElement {
      * constructor from local name
      * @param localName
      */
-    public MeiNoteElement(String localName)  {
+    public MeiElementHelper(String localName)  {
         super(localName);
         setNamespace("http://www.music-encoding.org/ns/mei");
     }
@@ -66,10 +66,10 @@ public class MeiNoteElement extends RichElement {
      * returns all children as MeiElements
      * @return
      */
-    public ArrayList<MeiNoteElement> getChildrenAsMeiElements() {
+    public ArrayList<MeiElementHelper> getChildrenAsMeiElements() {
         LinkedList<Element> elements = Helper.getAllChildElements(this.element);
-        ArrayList<MeiNoteElement> children = new ArrayList<>();
-        elements.forEach(elem -> children.add(new MeiNoteElement(elem)));
+        ArrayList<MeiElementHelper> children = new ArrayList<>();
+        elements.forEach(elem -> children.add(new MeiElementHelper(elem)));
         return children;
     }
 
@@ -78,10 +78,10 @@ public class MeiNoteElement extends RichElement {
      * @param name
      * @return
      */
-    public ArrayList<MeiNoteElement> getChildrenAsMeiElements(String name) {
+    public ArrayList<MeiElementHelper> getChildrenAsMeiElements(String name) {
         LinkedList<Element> elements = Helper.getAllChildElements(name, this.element);
-        ArrayList<MeiNoteElement> children = new ArrayList<>();
-        elements.forEach(elem -> children.add(new MeiNoteElement(elem)));
+        ArrayList<MeiElementHelper> children = new ArrayList<>();
+        elements.forEach(elem -> children.add(new MeiElementHelper(elem)));
         return children;
     }
 }

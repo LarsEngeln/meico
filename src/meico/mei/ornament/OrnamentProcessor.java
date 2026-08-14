@@ -2,7 +2,7 @@ package meico.mei.ornament;
 
 import meico.mei.Context;
 import meico.mei.Helper;
-import meico.mei.MeiNoteElement;
+import meico.mei.MeiElementHelper;
 import meico.mei.NoteProcessor;
 import meico.mpm.Mpm;
 import meico.mpm.elements.Part;
@@ -12,6 +12,7 @@ import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
 import meico.msm.MsmNoteElement;
 import meico.supplementary.KeyValue;
+import meico.xml.RichElement;
 import nu.xom.Attribute;
 import nu.xom.Element;
 import nu.xom.Node;
@@ -43,14 +44,18 @@ public class OrnamentProcessor {
      * process an mei arpeg element
      * @param arpeg
      */
-    public void processArpeg(Element arpeg) {
+    public void processArpeg(MeiElementHelper arpeg) {
         // check if this is really an arpeggio
-        Attribute order = Helper.getAttribute("order", arpeg);        // get order attribute
-        if ((order != null) && order.getValue().trim().equals("nonarp"))    // if no arpeggio
+        String order = arpeg.get("order");                                  // get order attribute
+        if (order == null)
+            return;
+
+        order = order.trim();
+        if((order == null) || order.equals("nonarp"))                       // if no arpeggio
             return;                                                         // cancel
 
         // compute the timing or get the necessary data to compute the end date later on
-        ArrayList<Object> timingData = this.context.computeControlEventTiming(arpeg, this.context.getCurrentPart());
+        ArrayList<Object> timingData = this.context.computeControlEventTiming(arpeg.getElement(), this.context.getCurrentPart());
         if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
             return;                                                         // stop processing it right now
 
@@ -61,53 +66,51 @@ public class OrnamentProcessor {
         od.scale = 0.0;
 
         // read the xml:id
-        Attribute id = Helper.getAttribute("id", arpeg);
+        String id = arpeg.getId();
         if (id != null)
-            od.xmlId = id.getValue();
+            od.xmlId = id;
         else
             od.xmlId = "meico_" + UUID.randomUUID().toString();
-        od.correspondence = (id == null) ? null : id.getValue();
+        od.correspondence = (id == null) ? null : id;
 
         // determine the note order
         int needsPostprocessing = 0;                                        // this will be set 1, if the note.order must be reordered with ascending pitch, and -1 for descending pitch
-        Attribute plist = Helper.getAttribute("plist", arpeg);
+        String plist = arpeg.get("plist");
         if (plist == null) {                                                // if we have no plist that specifies the note sequence
             if (order != null) {                                            // if we have an order attribute (otherwise we leave the note.order attribute away which is equal to "ascending pitch")
                 od.noteOrder = new ArrayList<>();
-                if (order.getValue().trim().equals("down"))                 // if it is specified down
+                if (order.equals("down"))                            // if it is specified down
                     od.noteOrder.add("descending pitch");                   // set the note.order attribute
                 else                                                        // in any other case (order ="up" or any unknown value)
                     od.noteOrder.add("ascending pitch");                    // set note.order="ascending pitch"
             }
         } else {                                                            // if we have a plist
             od.noteOrder = new ArrayList<>();
-            for (String ref : plist.getValue().trim().split("\\s+")) {   // collect the references (sorting will come later)
-                Element e = this.context.getAllNotesAndChords().get(ref.replace("#", ""));    // get the MEI element behind the reference
+            for (String ref : plist.trim().split("\\s+")) {   // collect the references (sorting will come later)
+                MeiElementHelper e = new MeiElementHelper(this.context.getAllNotesAndChords().get(ref.replace("#", "")));    // get the MEI element behind the reference
                 if (e == null)                                              // if it is neither a note nore a chord
                     continue;                                               // ignore it
-                if (e.getLocalName().equals("note")) {                      // if it is a note
+                if (e.getName().equals("note")) {                      // if it is a note
                     od.noteOrder.add(ref);                                  // add its reference to the note order list
                     continue;
                 }
-                if (e.getLocalName().equals("chord")) {                     // if it is a chord, we retrieve its notes and add them to the note order list in the sequence they are defined in the chord
-                    for (Node node : e.query("descendant::*[local-name()='note']")) {  // get all note elements in the chord
-                        Element note = (Element) node;                      // process it as an element
-                        Attribute noteId = Helper.getAttribute("id", note); // get the note's id
-                        if (noteId == null) {                               // if the note has no id, generate one
-                            noteId = new Attribute("xml:id", "http://www.w3.org/XML/1998/namespace", "meico_" + UUID.randomUUID().toString());
-                            this.context.getAllNotesAndChords().put(noteId.getValue(), note);
-                            note.addAttribute(noteId);
+                if (e.getName().equals("chord")) {                     // if it is a chord, we retrieve its notes and add them to the note order list in the sequence they are defined in the chord
+
+                    for (MeiElementHelper note : e.getChildrenAsMeiElements("note")) {  // get all note elements in the chord
+                        String noteId = note.getId(); // get the note's id
+                        if (noteId == null) {
+                            note.setId("meico_" + UUID.randomUUID().toString());// if the note has no id, generate one
                         }
-                        od.noteOrder.add("#" + noteId.getValue());          // add the id to the note order list
+                        od.noteOrder.add("#" + noteId);          // add the id to the note order list
                     }
                 }
             }
 
             // the sequence of the notes must be reordered to ensure that it matches with @order="up/down"; this will be done at the end of the mdiv conversion when all notes are converted and have a proper @pnum/@midi.pitch for each note
             if (order != null) {                                            // seems like a specific order is desired
-                if (order.getValue().trim().equals("down"))                 // if it should be with descending pitch
+                if (order.equals("down"))                 // if it should be with descending pitch
                     needsPostprocessing = -1;                               // set the indication - will be processed later
-                else if (order.getValue().trim().equals("up"))              // if ascending pitch
+                else if (order.equals("up"))              // if ascending pitch
                     needsPostprocessing = 1;                                // set the indication - will be processed later
             }
         }
@@ -121,10 +124,10 @@ public class OrnamentProcessor {
 
         // parse the staff attribute (space separated staff numbers)
         OrnamentationMap ornamentationMap;
-        Attribute att = arpeg.getAttribute("part");                                                                         // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
-        if (att == null)                                                                                                    // if no part attribute
-            att = arpeg.getAttribute("staff");                                                                              // find the staffs that this is associated to
-        if ((att == null) || att.getValue().isEmpty() || att.getValue().equals("%all")) {                                   // if no part or staff association is defined treat it as a global instruction
+        String attrVal = arpeg.get("part");                                                                         // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
+        if (attrVal == null)                                                                                                    // if no part attribute
+            attrVal = arpeg.get("staff");                                                                              // find the staffs that this is associated to
+        if ((attrVal == null) || attrVal.isEmpty() || attrVal.equals("%all")) {                                   // if no part or staff association is defined treat it as a global instruction
             ornamentationMap = (OrnamentationMap) this.context.getCurrentPerformance().getGlobal().getDated().getMap(Mpm.ORNAMENTATION_MAP);      // get the global ornamentationMap
             if (ornamentationMap == null) {                                                                                                 // if there is no global ornamentationMap
                 ornamentationMap = (OrnamentationMap) this.context.getCurrentPerformance().getGlobal().getDated().addMap(Mpm.ORNAMENTATION_MAP);  // create one
@@ -134,7 +137,7 @@ public class OrnamentProcessor {
             if (needsPostprocessing != 0)
                 this.arpeggiosToSort.add(new KeyValue<>(Helper.getAttribute("note.order", ornamentationMap.getElement(index)), needsPostprocessing > 0));    // store the note.order attribute and arpeggio direction for reordering during postprocessing
         } else {                                                                                    // there are staffs, hence, local ornament instruction
-            String staffString = att.getValue();
+            String staffString = attrVal;
             String[] staffs = staffString.split("\\s+");                                         // this creates an array of one or more integer strings (the staff numbers), they are separated by one or more whitespaces
 
             for (String staff : staffs) {                                                           // go through all the part numbers
@@ -190,34 +193,33 @@ public class OrnamentProcessor {
 
     /**
      * Process MEI tremolo elements and expand them into ornament data.
-     * @param trem
+     * @param element
      */
-    public void processTrem(Element trem) {
-        ArrayList<Object> timingData = this.context.computeControlEventTiming(trem, this.context.getCurrentPart());
+    public void processTrem(MeiElementHelper element) {
+        ArrayList<Object> timingData = this.context.computeControlEventTiming(element.getElement(), this.context.getCurrentPart());
         if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
             return;
-        MeiNoteElement element = new MeiNoteElement(trem);
 
-        ArrayList<MeiNoteElement> notes = new ArrayList<>();
-        ArrayList<MeiNoteElement> chords = new ArrayList<>();
+        ArrayList<MeiElementHelper> notes = new ArrayList<>();
+        ArrayList<MeiElementHelper> chords = new ArrayList<>();
 
 
         // collect all notes, plus collect them as chords while preserving the original chords
-        for(MeiNoteElement elem : element.getChildrenAsMeiElements()) {
+        for(MeiElementHelper elem : element.getChildrenAsMeiElements()) {
             if(elem.getName().equals("note")) {
                 notes.add(elem);
-                MeiNoteElement chord = new MeiNoteElement("chord");
-                chord.appendChild(new MeiNoteElement(elem.getElement(), true));
+                MeiElementHelper chord = new MeiElementHelper("chord");
+                chord.appendChild(new MeiElementHelper(elem.getElement(), true));
                 chords.add(chord);
             }
             else if(elem.getName().equals("chord")) {
-                ArrayList<MeiNoteElement> chordNotes = elem.getChildrenAsMeiElements("note");
+                ArrayList<MeiElementHelper> chordNotes = elem.getChildrenAsMeiElements("note");
                 if(chordNotes.isEmpty())
                     continue;
                 notes.addAll(chordNotes);
-                MeiNoteElement chord = new MeiNoteElement("chord");
-                for (MeiNoteElement chordNote : chordNotes) {
-                    chord.appendChild(new MeiNoteElement(chordNote.getElement(), true));
+                MeiElementHelper chord = new MeiElementHelper("chord");
+                for (MeiElementHelper chordNote : chordNotes) {
+                    chord.appendChild(new MeiElementHelper(chordNote.getElement(), true));
                 }
                 chords.add(chord);
             }
@@ -227,7 +229,7 @@ public class OrnamentProcessor {
             return;
 
         // processChords to get the 'normalized' attributes, as all chords are treated
-        MeiNoteElement allNotesChord = new MeiNoteElement("chord");
+        MeiElementHelper allNotesChord = new MeiElementHelper("chord");
         notes.forEach(allNotesChord::appendChild);
         this.noteProcessor.processChord(allNotesChord.getElement());
 
@@ -265,10 +267,10 @@ public class OrnamentProcessor {
 
         // encode the (alternating) tremolo pattern into the noteOrder sequence
         od.noteOrder.add("|:");
-        for (MeiNoteElement chord : chords) {
+        for (MeiElementHelper chord : chords) {
             od.noteOrder.add("[");
-            for(MeiNoteElement note : chord.getChildrenAsMeiElements("note")) {
-                MsmNoteElement msmNote = context.meiNote2MsmNote(new MeiNoteElement(note.getElement()));
+            for(MeiElementHelper note : chord.getChildrenAsMeiElements("note")) {
+                MsmNoteElement msmNote = context.meiNote2MsmNote(new MeiElementHelper(note.getElement()));
                 if (msmNote != null) {
                     msmNote.set("interval.chromatic", 0.0);
                     msmNote.remove("pitchname");
@@ -283,25 +285,23 @@ public class OrnamentProcessor {
         }
         od.noteOrder.add(":|");
 
-        addToOrnamentationMap(notes.get(0).getElement(), od);
+        addToOrnamentationMap(notes.get(0), od);
     }
 
     /**
      * process ornaments like trills, turns, graceGrps, .. that are provided by a (generated) supplied into ornamentData
-     * @param xmlElement
-     * @return true if xmlElement was an ornament that has been processed, false if xmlElement was not a proper ornament
+     * @param element
+     * @return true if element was an ornament that has been processed, false if element was not a proper ornament
      */
-    public boolean processOrnament(Element xmlElement) {
-        if(!checkIfOrnament(xmlElement))
+    public boolean processOrnament(MeiElementHelper element) {
+        if(!checkIfOrnament(element))
             return false;
 
-        ArrayList<Object> timingData = this.context.computeControlEventTiming(xmlElement, this.context.getCurrentPart());
+        ArrayList<Object> timingData = this.context.computeControlEventTiming(element.getElement(), this.context.getCurrentPart());
         if (timingData == null)                                             // if the event has been repositioned in accordance to a startid attribute
             return false;                                                         // stop processing it right now
 
-        MeiNoteElement element = new MeiNoteElement(xmlElement, true);
-
-        ArrayList<MeiNoteElement> graceGrps = new ArrayList<>();
+        ArrayList<MeiElementHelper> graceGrps = new ArrayList<>();
         String ornamentName = "ornam";
         String elementId = element.getId();
         ArrayList<String> segmentLabels = new ArrayList<>();
@@ -309,7 +309,7 @@ public class OrnamentProcessor {
         if(element.has("label"))
             ornamentName = element.get("label");
 
-        ArrayList<MeiNoteElement> children = element.getChildrenAsMeiElements();
+        ArrayList<MeiElementHelper> children = element.getChildrenAsMeiElements();
         graceGrps.addAll(children); // by definition each child is a graceGrp
 
         // get the principal
@@ -318,7 +318,7 @@ public class OrnamentProcessor {
         timingData.set(0, Double.parseDouble(principal.getAttributeValue("date")));
 
         // preserve per-segment labels so combined expansions can be split again
-        for (MeiNoteElement child : children) {
+        for (MeiElementHelper child : children) {
             String label = child.get("label");
             if (label != null && !label.isEmpty())
                 segmentLabels.add(label);
@@ -328,7 +328,7 @@ public class OrnamentProcessor {
 
         // create one ornamentData per ornament (graceGrp)
         for (int s = 0; s < segmentCount; s++) {
-            MeiNoteElement graceGrp = graceGrps.get(s);
+            MeiElementHelper graceGrp = graceGrps.get(s);
             String correspId = graceGrp.get("corresp");
 
             OrnamentData od = new OrnamentData();
@@ -341,22 +341,21 @@ public class OrnamentProcessor {
             od.noteOrder = new ArrayList<>();
 
 
-            for (MeiNoteElement elem : graceGrp.getChildrenAsMeiElements()) {
+            for (MeiElementHelper elem : graceGrp.getChildrenAsMeiElements()) {
                 addMeiNoteToOrnamentData(elem, od);
             }
 
-            addToOrnamentationMap(xmlElement, od);
+            addToOrnamentationMap(element, od);
         }
         return true;
     }
 
     /**
      * check if the element is a supplied generated by meico which is a preprocessed ornament
-     * @param xmlElement
+     * @param element
      * @return
      */
-    protected boolean checkIfOrnament(Element xmlElement) {
-        MeiNoteElement element = new MeiNoteElement(xmlElement);
+    protected boolean checkIfOrnament(MeiElementHelper element) {
         return      element.getName().equals("supplied")
                 &&  element.has("reason")
                 &&  element.get("reason").startsWith("ornament expansion")
@@ -368,14 +367,14 @@ public class OrnamentProcessor {
      * @param elem MEI note
      * @param od
      */
-    private void addMeiNoteToOrnamentData(MeiNoteElement elem, OrnamentData od) {
+    private void addMeiNoteToOrnamentData(MeiElementHelper elem, OrnamentData od) {
         if (elem.getName().equals("barLine")) {
             od.noteOrder.add(getRptString(elem));
             od.repetitions = -1; // if we have a barline, we got a repetitive moment, that is going to be guessed ("-1") while "perform"
             return;
         }
 
-        MsmNoteElement msmNote = context.meiNote2MsmNote(new MeiNoteElement(elem.getElement()));
+        MsmNoteElement msmNote = context.meiNote2MsmNote(new MeiElementHelper(elem.getElement()));
         if (msmNote != null) {
             if(elem.has("intm")) {
                 String intm = elem.get("intm");
@@ -396,7 +395,7 @@ public class OrnamentProcessor {
      * @param elem
      * @return
      */
-    private String getRptString(MeiNoteElement elem) {
+    private String getRptString(MeiElementHelper elem) {
         String rptStr = "";
         switch(elem.get("form")) {
             case "rptstart":
@@ -420,7 +419,7 @@ public class OrnamentProcessor {
      * @param el
      * @param od
      */
-    private void addToOrnamentationMap(Element el, OrnamentData od) {               // TODO: use in processArpeg
+    private void addToOrnamentationMap(MeiElementHelper el, OrnamentData od) {               // TODO: use in processArpeg
         // make sure that the ornamentationStyle is defined in a global ornamentation style of name "MEI export"
         OrnamentationStyle ornamentationStyle = (OrnamentationStyle) this.context.getCurrentPerformance().getGlobal().getHeader().getStyleDef(Mpm.ORNAMENTATION_STYLE, "MEI export"); // get the global ornamentationSyles/styleDef element
         if (ornamentationStyle == null)                                                                                                                                         // if there is none
@@ -430,22 +429,22 @@ public class OrnamentProcessor {
 
         // parse the staff attribute (space separated staff numbers)
         OrnamentationMap ornamentationMap;
-        Attribute att = el.getAttribute("part");                                                                            // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
+        String attrVal = el.get("part");                                                                            // get the part attribute (MEI 4.0, https://github.com/music-encoding/music-encoding/issues/435)
 
-        if (att == null)                                                                                                       // if no part attribute
-            att = el.getAttribute("staff");                                                                                 // find the staffs that this is associated to
+        if (attrVal == null)                                                                                                       // if no part attribute
+            attrVal = el.get("staff");                                                                                 // find the staffs that this is associated to
 
-        String elName = el.getLocalName();
-        if(att == null && (elName.equals("supplied") || elName.equals("graceGrp") || elName.equals("note") || elName.equals("chord") || elName.equals("fTrem") || elName.equals("bTrem"))) {    // search staff and get its "n"
-            Element parent = el;
+        String elName = el.getName();
+        if(attrVal == null && (elName.equals("supplied") || elName.equals("graceGrp") || elName.equals("note") || elName.equals("chord") || elName.equals("fTrem") || elName.equals("bTrem"))) {    // search staff and get its "n"
+            RichElement parent = el;
             do {
-                parent = Helper.getParentElement(parent);
-                if(parent != null && (parent.getLocalName().equals("staff") || parent.getLocalName().equals("part")))
-                    att = parent.getAttribute("n");
-            } while (att == null && parent != null && !parent.getLocalName().equals("part"));
+                parent = parent.getParent();
+                if(parent != null && (parent.getName().equals("staff") || parent.getName().equals("part")))
+                    attrVal = parent.get("n");
+            } while (attrVal == null && parent != null && !parent.getName().equals("part"));
         }
 
-        if ((att == null) || att.getValue().isEmpty() || att.getValue().equals("%all")) {                                      // if no part or staff association is defined treat it as a global instruction
+        if ((attrVal == null) || attrVal.isEmpty() || attrVal.equals("%all")) {                                      // if no part or staff association is defined treat it as a global instruction
             ornamentationMap = (OrnamentationMap) this.context.getCurrentPerformance().getGlobal().getDated().getMap(Mpm.ORNAMENTATION_MAP);      // get the global ornamentationMap
             if (ornamentationMap == null) {                                                                                          // if there is no global ornamentationMap
                 ornamentationMap = (OrnamentationMap) this.context.getCurrentPerformance().getGlobal().getDated().addMap(Mpm.ORNAMENTATION_MAP);  // create one
@@ -455,7 +454,7 @@ public class OrnamentProcessor {
         }
         else {                                                                                          // there are staffs, hence, local ornament instruction
             boolean multiIDs = false;
-            String staffString = att.getValue();
+            String staffString = attrVal;
             String[] staffs = staffString.split("\\s+");                                             // this creates an array of one or more integer strings (the staff numbers), they are separated by one or more whitespaces
 
             for (String staff : staffs) {                                                               // go through all the part numbers
