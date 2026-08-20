@@ -6,7 +6,10 @@ import java.util.Map;
 import java.util.regex.*;
 
 /**
- * This class interfaces temporal domain with a value
+ * This class interfaces a temporal value with its domain.
+ * TemporalValues can be processed with each other.
+ * Thereby, e.g. the resulting absolute value can be derived
+ * by applying a relative TemporalValue to a TemporalValue
  * @author Lars Engeln
  */
 public class TemporalValue {
@@ -15,14 +18,14 @@ public class TemporalValue {
      */
     public enum Domain {
         Unknown,
-        Relative,
-        Milliseconds,
-        Ticks,
+        Relative,                                                   // % - e.g. 80% (of something, e.g. of a TemporalValue with absolute domain)
+        Milliseconds,                                               // ms - e.g. 1000ms
+        Ticks,                                                      // ticks - e.g. 720ticks (i.e., corresponding to a quarter note, depending on the PPQ)
         //Notelength // 8th, 16th, ..
     }
-    private static final Map<Domain, String> domainStrings;
+    private static final Map<Domain, String> domainStrings;         // Map with 'unit' strings of the Domains meant for displaying
     static {
-        Map<Domain, String> map = new HashMap<>();
+        Map<Domain, String> map = new HashMap<>();                  // filling in the Domain unit strings
         map.put(Domain.Milliseconds, "ms");
         map.put(Domain.Relative, "%");
         map.put(Domain.Ticks, "ticks");
@@ -30,9 +33,9 @@ public class TemporalValue {
         map.put(Domain.Unknown, "?");
         domainStrings = Collections.unmodifiableMap(map);
     }
-    private static final Map<Domain, String> domainNameStrings;
+    private static final Map<Domain, String> domainNameStrings;     // Map with strings of the Domain names
     static {
-        Map<Domain, String> map = new HashMap<>();
+        Map<Domain, String> map = new HashMap<>();                  // filling in the Domain names
         map.put(Domain.Milliseconds, "milliseconds");
         map.put(Domain.Relative, "relative");
         map.put(Domain.Ticks, "ticks");
@@ -41,10 +44,10 @@ public class TemporalValue {
         domainNameStrings = Collections.unmodifiableMap(map);
     }
 
-    private double value = 0.0;
-    private Domain domain = Domain.Unknown;
+    private double value = 0.0;                                     // the value
+    private Domain domain = Domain.Unknown;                         // the domain of the value
 
-    private TemporalValue relationTo = null;
+    private TemporalValue relationTo = null;                        // the TemporalValue to what this is in relation to
 
     /**
      * constructor, generates an instance with initial values
@@ -60,20 +63,29 @@ public class TemporalValue {
      * TemporalValue factory
      * @param value
      * @param domain
-     * @return
+     * @return a new TemporalValue
      */
     public static TemporalValue create(double value, Domain domain) {
         return new TemporalValue(value, domain);
     }
 
+    /**
+     * creates a new TemporalValue that is in relation to relativeTo
+     * @param relativeTo
+     * @return the relative TemporalValue to relativeTo
+     */
     public static TemporalValue createInRelationTo(TemporalValue relativeTo) {
         TemporalValue temporal = new TemporalValue(relativeTo.value, Domain.Relative);
         temporal.setRelation(relativeTo);
         return temporal;
     }
 
+    /**
+     * creates a new TemporalValue as clone of this
+     * @return the cloned TemporalValue
+     */
     public TemporalValue clone() {
-        TemporalValue temporal = new TemporalValue(this.value, this.domain);
+        TemporalValue temporal = TemporalValue.create(this.value, this.domain);
         if(hasRelation())
             temporal.setRelation(this.relationTo);
         return temporal;
@@ -81,7 +93,7 @@ public class TemporalValue {
 
     /**
      * return the temporal value
-     * @return
+     * @return value
      */
     public double getValue() {
         return value;
@@ -112,7 +124,7 @@ public class TemporalValue {
 
     /**
      * return the temporal domain
-     * @return
+     * @return domain
      */
     public Domain getDomain() {
         return domain;
@@ -138,10 +150,10 @@ public class TemporalValue {
 
     /**
      * return the TempralValue to what this is in relation to
-     * @return
+     * @return the TemporalValue that this TemporalValue is in relation to
      */
     public TemporalValue getRelation() {
-        return  relationTo;
+        return relationTo;
     }
 
     /**
@@ -163,13 +175,14 @@ public class TemporalValue {
 
     /**
      * returns if this has a relation
-     * @return
+     * @return true if this has a relation
      */
     public boolean hasRelation() {
         return relationTo != null;
     }
     /**
      * returns if the relation stack has an absolute root
+     * @return true if the relation stack has an absolute root
      */
     public boolean hasAbsoluteRoot() {
         if(!isRelative())
@@ -180,7 +193,7 @@ public class TemporalValue {
     }
 
     /**
-     * returns a TemporalValue object that is relative in its value to value.
+     * returns a TemporalValue object that is relative in its value to the given value.
      * @param value
      * @return
      */
@@ -192,14 +205,10 @@ public class TemporalValue {
             return relative;
         }
 
-        double greaterValue = getValue();
-        double lesserValue = value;
-        if(getValue() < value) {
-            greaterValue = value;
-            lesserValue = getValue();
-        }
-
-        double relativeValue = (lesserValue * 100) / greaterValue;
+        double greaterValue     = Math.max(getValue(), value);
+        double lesserValue      = Math.min(getValue(), value);
+        double relativeValue    = (lesserValue * 100) / greaterValue;
+        //double relativeValue      = (getValue() * 100) / value;
         relative.setValue(relativeValue);
 
         return relative;
@@ -207,21 +216,21 @@ public class TemporalValue {
     /**
      * returns a TemporalValue object that is relative regarding its value to temporal's value.
      * @param temporal
-     * @return
+     * @return the relative TemporalValue
      */
     public TemporalValue getRelativeTo(TemporalValue temporal) {
         if(temporal == null)
             return null;
-        if(hasSameDomain(temporal))
-            return getRelativeTo(temporal.getValue());
-
-        if(!isRelative() && !temporal.isRelative())
-            return null;
-
+        if(hasSameDomain(temporal))                         // if we have the same Domain (absolute or relative),
+            return getRelativeTo(temporal.getValue());      // directly get the relative of us
+                                                            // otherwise we need to process
+        if(!isRelative() && !temporal.isRelative())         // if non of us is relative,
+            return null;                                    // we cannot get a relative value of us,
+                                                            // as no conversion e.g. from ticks to milliseconds can be done here (at this very moment)
         TemporalValue relative;
         TemporalValue absolute;
 
-        if (temporal.isRelative()) {
+        if (temporal.isRelative()) {                        // get the relative one of us
             absolute = this;
             relative = temporal.clone();
         }
@@ -234,27 +243,35 @@ public class TemporalValue {
         return relative;
     }
 
+    /**
+     * returns a TemporalValue object that is relative regarding its value to temporal's value.
+     * @return relative TemporalValue
+     */
     public TemporalValue getRelativeTo() {
-        TemporalValue absolute = relationTo.getAbsoluteTo();
-        return getRelativeTo(absolute);
+        TemporalValue absolute = relationTo.getAbsoluteTo();        // solve relation stack first
+        return getRelativeTo(absolute);                             // to receive the relative
     }
 
+    /**
+     * returns a TemporalValue object with absolute value derived from this and temporal where one is relative
+     * @param temporal
+     * @return absolute TemporalValue, it is this if this and temporal are both absolute
+     */
     public TemporalValue getAbsoluteTo(TemporalValue temporal) {
         if (temporal == null) {
             return null;
         }
-        if(isRelative() && temporal.isRelative()) {
-            return null;
+        if(isRelative() && temporal.isRelative()) {         // if we both are relative,
+            return null;                                    // we cannot get an absolute one
         }
-        if(!isRelative() && !temporal.isRelative()) {
-            return this;
+        if(!isRelative() && !temporal.isRelative()) {       // if we both are absolute,
+            return this;                                    // return this as we cannot give an absolute value of us regarding the other one
         }
-
 
         TemporalValue absolute;
         TemporalValue relative;
 
-        if (temporal.isRelative()) {
+        if (temporal.isRelative()) {                        // get the relative one of us
             absolute = this.clone();
             relative = temporal;
         }
@@ -268,19 +285,24 @@ public class TemporalValue {
         return absolute;
     }
 
+    /**
+     * returns a TemporalValue object with absolute value derived from this.
+     * This solves a hierarchy of relative relations, if an absolute root TemporalValue exists.
+     * @return absolute TemporalValue
+     */
     public TemporalValue getAbsoluteTo() {
-        if(!hasAbsoluteRoot())
-            return null;
-        if(!hasRelation())  // != isRelative
-            return this;
+        if(!hasAbsoluteRoot())                      // if no absolute root exists (so if only a stack of relative values exists)
+            return null;                            // we cannot solve
+        if(!hasRelation())  // != isRelative        // if we do not have any relations
+            return this;                            // then we are already the result
 
-        return getAbsoluteTo(relationTo);
+        return getAbsoluteTo(relationTo);           // otherwise solve
     }
 
     /**
      * set value after applying the relativValue to it
      * @param relativValue
-     * @return
+     * @return the resulting value (in its domain)
      */
     public double applyRelative(double relativValue) {
         setValue(getValue() * (relativValue / 100));
@@ -289,7 +311,7 @@ public class TemporalValue {
     /**
      * set value after applying the value of relativeTemporal to it
      * @param relativeTemporal
-     * @return
+     * @return the resulting value (in its domain)
      */
     public double applyRelative(TemporalValue relativeTemporal) {
         if(!relativeTemporal.isRelative())
@@ -300,7 +322,7 @@ public class TemporalValue {
     /**
      * adds value to this value
      * @param value
-     * @return
+     * @return the resulting value (in its domain)
      */
     public double add(double value) {
         setValue(getValue() + value);
@@ -310,7 +332,7 @@ public class TemporalValue {
     /**
      * adds temporal's value to this value
      * @param temporal
-     * @return
+     * @return the resulting value (in its domain)
      */
     public double add(TemporalValue temporal) {
         if(hasSameDomain(temporal))
@@ -321,7 +343,7 @@ public class TemporalValue {
     /**
      * substracts value from this value
      * @param value
-     * @return
+     * @return the resulting value (in its domain)
      */
     public double subtract(double value) {
         setValue(getValue() - value);
@@ -331,7 +353,7 @@ public class TemporalValue {
     /**
      * substracts temporal's value from this value
      * @param temporal
-     * @return
+     * @return the resulting value (in its domain)
      */
     public double subtract(TemporalValue temporal) {
         if(hasSameDomain(temporal))
@@ -340,17 +362,17 @@ public class TemporalValue {
     }
 
     /**
-     * returns if this value is greater than the given value
+     * compares this value with the given value
      * @param value
-     * @return
+     * @return true if this value is greater than the given value
      */
     public boolean isGreater(double value) {
         return getValue() > value;
     }
     /**
-     * returns if this value is greater than temporal's value. If temporal is not in the same Domain the result is false
+     * compares this value with the given value. If temporal is not in the same Domain the result is false
      * @param temporal
-     * @return
+     * @return true if this value is greater than temporal's value
      */
     public boolean isGreater(TemporalValue temporal) {
         if(hasSameDomain(temporal))
@@ -358,17 +380,17 @@ public class TemporalValue {
         return false;
     }
     /**
-     * returns if this value is less than the given value
+     * compares this value with the given value
      * @param value
-     * @return
+     * @return true if this value is less than the given value
      */
     public boolean isLess(double value) {
         return getValue() < value;
     }
     /**
-     * returns if this value is less than temporal's value. If temporal is not in the same Domain the result is false
+     * compares this value with the given value. If temporal is not in the same Domain the result is false
      * @param temporal
-     * @return
+     * @return true if this value is less than temporal's value
      */
     public boolean isLess(TemporalValue temporal) {
         if(hasSameDomain(temporal))
@@ -380,7 +402,7 @@ public class TemporalValue {
      * returns the TemporalValue with greater value of a and b. If equal, a is returned.
      * @param a
      * @param b
-     * @return
+     * @return TemporalValue that is greater
      */
     public static TemporalValue getGreater(TemporalValue a, TemporalValue b) {
         if(b.isGreater(a))
@@ -391,7 +413,7 @@ public class TemporalValue {
      * returns the TemporalValue a or b which is less in value. If equal, b is returned.
      * @param a
      * @param b
-     * @return
+     * @return TemporalValue that is less
      */
     public static TemporalValue getLess(TemporalValue a, TemporalValue b) {
         if(a.isLess(b))
@@ -402,7 +424,7 @@ public class TemporalValue {
     /**
      * returns if this domain is equal to temporal's domain
      * @param temporal
-     * @return
+     * @return true if same domain
      */
     public boolean hasSameDomain(TemporalValue temporal) {
         return getDomain() == temporal.getDomain();
@@ -411,7 +433,7 @@ public class TemporalValue {
     /**
      * returns if this value is equal to temporsl's value
      * @param temporal
-     * @return
+     * @return true if same value
      */
     public boolean hasSameValue(TemporalValue temporal) {
         return getValue() == temporal.getValue();
@@ -420,7 +442,7 @@ public class TemporalValue {
     /**
      * returns if equal, both value and domain
      * @param temporal
-     * @return
+     * @return true if domain and value is equal
      */
     public boolean equals(TemporalValue temporal) {
         return hasSameDomain(temporal) && hasSameValue(temporal);
@@ -428,7 +450,7 @@ public class TemporalValue {
 
     /**
      * return if it is a relative value
-     * @return
+     * @return true if the domain is Relative
      */
     public boolean isRelative() {
         return getDomain() == Domain.Relative;
@@ -436,7 +458,7 @@ public class TemporalValue {
 
     /**
      * returns if it is in milliseconds
-     * @return
+     * @return true if the domain is Milliseconds
      */
     public boolean isMilliseconds() {
         return getDomain() == Domain.Milliseconds;
@@ -444,23 +466,15 @@ public class TemporalValue {
 
     /**
      * returns if it is in ticks
-     * @return
+     * @return true if the domain is Ticks
      */
     public boolean isTicks() {
         return getDomain() == Domain.Ticks;
     }
 
-    /** TODO
-     * returns if it is a note length
-     * @return
-     */
-    /* public boolean isNoteLength() {
-        return getDomain() == Domain.Notelength;
-    }*/
-
     /**
      * returns if the domain is unknown
-     * @return
+     * @return true if the domain is Unknown
      */
     public boolean isUnknown() {
         return getDomain() == Domain.Unknown;
@@ -468,7 +482,7 @@ public class TemporalValue {
 
     /**
      * stringifies as value + unit
-     * @return
+     * @return string representation of the temporal value
      */
     public String toString() {
         return Double.toString(value) + getDomainString();
@@ -479,8 +493,8 @@ public class TemporalValue {
      * @param valueDomain
      */
     public void fromString(String valueDomain) {
-        Pattern pattern = Pattern.compile("^(\\d+)(ms|th|%|ticks|\\?)$");
-        Matcher m = pattern.matcher(valueDomain);
+        Pattern pattern = Pattern.compile("^(\\d+)(ms|th|%|ticks|\\?)$");  // checks string if it is a valid value + unit string
+        Matcher m = pattern.matcher(valueDomain.trim());
         if (m.matches()) {
             setValue(Double.parseDouble(m.group(1)));
             setDomain(fromDomainString(m.group(2)));
@@ -495,16 +509,16 @@ public class TemporalValue {
 
     /**
      * return this domain unit string
-     * @return
+     * @return domain as string
      */
     public String getDomainString() {
         return toDomainString(domain);
     }
 
     /**
-     * return the unit string regarding domain
+     * return the unit string of domain
      * @param domain
-     * @return
+     * @return domain as string
      */
     public static String toDomainString(Domain domain) {
         return domainStrings.get(domain);
@@ -513,7 +527,7 @@ public class TemporalValue {
     /**
      * returns the Domain regarding the unit in domainString
      * @param domainString
-     * @return
+     * @return domain
      */
     public static Domain fromDomainString(String domainString) {
         for (Map.Entry<Domain, String> entry : domainStrings.entrySet()) {
@@ -527,7 +541,7 @@ public class TemporalValue {
     /**
      * returns the name of domain, e.g. for displaying
      * @param domain
-     * @return
+     * @return domain name
      */
     public static String toDomainName(Domain domain) {
         return domainNameStrings.get(domain);
@@ -536,7 +550,7 @@ public class TemporalValue {
     /**
      * returns the Domain regarding the corresponding domainName
      * @param domainName
-     * @return
+     * @return domain
      */
     public static Domain fromDomainName(String domainName) {
         for (Map.Entry<Domain, String> entry : domainNameStrings.entrySet()) {
