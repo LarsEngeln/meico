@@ -70,6 +70,30 @@ public class MsmNoteElement extends RichElement {
     }
 
     /**
+     * returns the duration in Milliseconds by using "milliseconds.date"-"milliseconds.date.end"
+     * @return
+     */
+    public Double getMillisecondsDuration() {
+        return getMillisecondsEnd() - getMillisecondsDate();
+    }
+
+    /**
+     * returns "milliseconds.date"
+     * @return
+     */
+    public Double getMillisecondsDate() {
+        return getAsDouble("milliseconds.date");
+    }
+
+    /**
+     * returns "milliseconds.date.end"
+     * @return
+     */
+    public Double getMillisecondsEnd() {
+        return getAsDouble("milliseconds.date.end");
+    }
+
+    /**
      * compares this note to another note and returns true if they have the same pitchname and octave, false otherwise
      * @param note
      * @return

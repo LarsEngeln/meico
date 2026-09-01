@@ -734,7 +734,7 @@ public class OrnamentationMap extends GenericMap {
             // determine the principal note duration in ticks from the first chord of the first entry
             double principalDuration = getPrincipalDuration(group.get(0).chordSequence);
             if(principalNote != null) {
-                principalDuration = getNoteDuration(principalNote);
+                principalDuration = principalNote.getMillisecondsDuration();
                 if(principalNote.has("ornament.duration")) {
                     principalDuration = principalNote.getAsDouble("ornament.duration");
                 }
@@ -745,7 +745,7 @@ public class OrnamentationMap extends GenericMap {
             ArrayList<OrnamentEntry> endOrnaments = new ArrayList<>();
             for (OrnamentEntry entry : group) {
                 if(principalNote != null && principalNote.has("ornament.milliseconds.date.offset")) {
-                    entry.od.date = getNoteDate(principalNote) + principalNote.getAsDouble("ornament.milliseconds.date.offset");
+                    entry.od.date = principalNote.getMillisecondsDate() + principalNote.getAsDouble("ornament.milliseconds.date.offset");
                     new MsmNoteElement(entry.od.xml).set("milliseconds.date", entry.od.date);
                     //new MsmElement(entry.od.xml).set("date", entry.od.date);
 
@@ -873,7 +873,7 @@ public class OrnamentationMap extends GenericMap {
                         ArrayList<Element> lastChord = entry.chordSequence.get(entry.chordSequence.size()-1);
                         for(Element element : lastChord) {
                             MsmNoteElement note = new MsmNoteElement(element);
-                            double noteEnd = getNoteDate(note) + note.getAsDouble("ornament.milliseconds.date.offset") + note.getAsDouble("ornament.milliseconds.duration");
+                            double noteEnd = note.getMillisecondsDate() + note.getAsDouble("ornament.milliseconds.date.offset") + note.getAsDouble("ornament.milliseconds.duration");
                             if(note.get("midi.pitch").equals(principalNote.get("midi.pitch")) && noteEnd >= leftover.getKey()) {
                                 extendThis = note;
                                 break;
@@ -884,7 +884,7 @@ public class OrnamentationMap extends GenericMap {
                             break;
                     }
                     if(extendThis != null) {
-                        extendThis.set("ornament.milliseconds.duration", String.valueOf(leftover.getValue() - getNoteDate(extendThis) - extendThis.getAsDouble("ornament.milliseconds.date.offset")));
+                        extendThis.set("ornament.milliseconds.duration", String.valueOf(leftover.getValue() - extendThis.getMillisecondsDate() - extendThis.getAsDouble("ornament.milliseconds.date.offset")));
                         continue;
                     }
 
@@ -901,18 +901,6 @@ public class OrnamentationMap extends GenericMap {
             }
         }
         return addedNotes;
-    }
-
-    private static double getNoteDuration(MsmNoteElement principalNote) {
-        return getNoteEnd(principalNote) - getNoteDate(principalNote);
-    }
-
-    private static Double getNoteDate(MsmNoteElement principalNote) {
-        return principalNote.getAsDouble("milliseconds.date");
-    }
-
-    private static Double getNoteEnd(MsmNoteElement principalNote) {
-        return principalNote.getAsDouble("milliseconds.date.end");
     }
 
     /**
