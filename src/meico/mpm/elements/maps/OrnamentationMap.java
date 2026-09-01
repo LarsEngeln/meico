@@ -66,14 +66,17 @@ public class OrnamentationMap extends GenericMap {
         return d;
     }
 
-    public static OrnamentationMap createOrnamentationMap(OrnamentationMap ornamentationMap) throws Exception {
+    /**
+     * Creates a deep copy of this OrnamentationMap.
+     * @return a new OrnamentationMap with the same data as this one
+     */
+    public OrnamentationMap clone() {
         OrnamentationMap clone = createOrnamentationMap();
-        if(ornamentationMap == null)
-            return clone;
-        clone.setId(ornamentationMap.getId());
-        clone.setType(ornamentationMap.getType());
-        clone.setHeaders(ornamentationMap.getGlobalHeader(), ornamentationMap.getLocalHeader());
-        for(KeyValue<Double, Element> elem : ornamentationMap.getAllElements()) {
+
+        clone.setId(this.getId());
+        clone.setType(this.getType());
+        clone.setHeaders(this.getGlobalHeader(), this.getLocalHeader());
+        for(KeyValue<Double, Element> elem : this.getAllElements()) {
             KeyValue<Double, Element> e = new KeyValue<>(elem.getKey(), elem.getValue().copy());
             clone.insertElement(e);
         }

@@ -525,7 +525,7 @@ public class Performance extends AbstractXmlSubtree {
                 dynamicsMap = (DynamicsMap) mpmPart.getDated().getMap(Mpm.DYNAMICS_MAP);                                // get dynamicsMap
                 metricalAccentuationMap = (MetricalAccentuationMap) mpmPart.getDated().getMap(Mpm.METRICAL_ACCENTUATION_MAP);   // get metricalAccentuationMap
                 try {
-                    ornamentationMap = OrnamentationMap.createOrnamentationMap((OrnamentationMap) mpmPart.getDated().getMap(Mpm.ORNAMENTATION_MAP));                 // get ornamentationMap
+                    ornamentationMap = ((OrnamentationMap) mpmPart.getDated().getMap(Mpm.ORNAMENTATION_MAP)).clone();                 // get ornamentationMap
                 }
                 catch (Exception e) {
                     String exc = e.getLocalizedMessage();
