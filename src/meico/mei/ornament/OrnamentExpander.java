@@ -433,7 +433,7 @@ public class OrnamentExpander {
     private void expandOrnamentsElement(Element element) {
         MeiElementHelper ornament = new MeiElementHelper(element);
         String ornamFullName = getOrnamentFullName(ornament);
-        if(ornamFullName == null || ornamFullName.equals(""))
+        if(ornamFullName == null || ornamFullName.equals("") || !ornamentLookup.containsKey(ornamFullName))
             return;     // if I am not yet supported
 
         if (checkForCombinedOrnaments(ornament))

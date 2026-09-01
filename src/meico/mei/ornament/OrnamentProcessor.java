@@ -333,7 +333,7 @@ public class OrnamentProcessor {
             od.xmlId = correspId != null ? correspId : UUID.randomUUID().toString();
             od.correspondence = elementId;
             od.date = (Double) timingData.get(0);
-            od.ornamentDefName = segmentLabels.get(s);
+            od.ornamentDefName = (segmentLabels.size() > s) ? segmentLabels.get(s) : ornamentName;
             od.scale = 0.0;
             od.notes = new ArrayList<>();
             od.noteOrder = new ArrayList<>();

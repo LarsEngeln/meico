@@ -339,8 +339,11 @@ public class OrnamentationMap extends GenericMap {
 
             ornament.copyValue("date", principalNote);
             ArrayList<MsmNoteElement> children = new MsmNoteElement(ornament.getElement()).getChildrenAsMsmElements();
-            ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
+            ArrayList<String> noteOrder = new ArrayList<>();
             Map<Integer, Integer> repeats = new HashMap<>();
+
+            if(ornament.has("note.order"))
+                noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
 
             int chordIndex = 0;
             int repeatStart = chordIndex;
