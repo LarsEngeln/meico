@@ -622,18 +622,11 @@ public class GenericMap extends AbstractXmlSubtree {
      * @param id
      */
     public void removeElement(String id) {
-        for (KeyValue<Double, Element> e : this.elements) {
-            String elemId = Helper.getAttributeValue("id", e.getValue());
-            if (elemId.equals(id)) {
-                for(Element elem : this.getXml().getChildElements()) {
-                    if(Helper.getAttributeValue("id", elem).equals(id)) {
-                        this.getXml().removeChild(elem);
-                        break;
-                    }
-                }
-                this.elements.remove(e);
-                return;
-            }
+        Element element = this.getElementByID(id);
+
+        if(element != null) {
+            this.getXml().removeChild(element);
+            this.elements.remove(element);
         }
     }
 
