@@ -1,4 +1,4 @@
-package meico.mpm.elements;
+package meico.mpm.elements.maps.data;
 
 import java.util.Collections;
 import java.util.HashMap;
