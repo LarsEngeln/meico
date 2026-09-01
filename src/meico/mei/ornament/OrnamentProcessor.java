@@ -1,6 +1,6 @@
 package meico.mei.ornament;
 
-import meico.mei.Context;
+import meico.mei.ConversionContext;
 import meico.mei.Helper;
 import meico.mei.MeiElementHelper;
 import meico.mei.NoteProcessor;
@@ -15,7 +15,6 @@ import meico.supplementary.KeyValue;
 import meico.xml.RichElement;
 import nu.xom.Attribute;
 import nu.xom.Element;
-import nu.xom.Node;
 
 import java.util.ArrayList;
 import java.util.UUID;
@@ -26,7 +25,7 @@ import java.util.UUID;
  */
 public class OrnamentProcessor {
     protected ArrayList<KeyValue<Attribute, Boolean>> arpeggiosToSort = new ArrayList<>();  // for some arpeggios the note.order attribute must be sorted to get an up (true) or downwards (false) direction; this is done during postprocessing of mdiv elements when we know the notes' pitch values (also available via getAllNotesAndChords(), attribute pnum); this list holds all attributes note.order to be reordered and the corresponding direction (true=up, false=down)
-    private final Context context;
+    private final ConversionContext context;
     private final NoteProcessor noteProcessor;
 
     /**
@@ -35,7 +34,7 @@ public class OrnamentProcessor {
      * @param context
      * @param noteProcessor
      */
-    public OrnamentProcessor(Context context, NoteProcessor noteProcessor) {
+    public OrnamentProcessor(ConversionContext context, NoteProcessor noteProcessor) {
         this.context = context;
         this.noteProcessor = noteProcessor;
     }

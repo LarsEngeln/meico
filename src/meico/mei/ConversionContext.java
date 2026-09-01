@@ -7,7 +7,11 @@ import nu.xom.Element;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public interface Context {
+
+/**
+ * The ConversionContext interfaces all needed access for Processors to perform their conversions.
+ */
+public interface ConversionContext {
     Element getCurrentPart();
     Performance getCurrentPerformance();
     HashMap<String, Element> getAllNotesAndChords();

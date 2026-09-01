@@ -34,7 +34,7 @@ import java.util.*;
  * @author Axel Berndt
  * @author Lars Engeln
  */
-public class Mei2MsmMpmConverter implements Context, NoteProcessor {
+public class Mei2MsmMpmConverter implements ConversionContext, NoteProcessor {
     private Mei mei = null;                         // the MEI to be converted
     private boolean ignoreExpansions = false;       // set this true to have a 1:1 conversion of MEI to MSM without the rearrangement that MEI's expansion elements produce
     private boolean cleanup = true;                 // set true to return a clean msm file or false to keep all the crap from the conversion
