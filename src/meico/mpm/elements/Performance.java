@@ -473,8 +473,7 @@ public class Performance extends AbstractXmlSubtree {
         Performance.addMsmMapToList("markerMap", globalDated, maps);
         GenericMap globalPedalMap = Performance.addMsmMapToList("pedalMap", globalDated, maps);
 
-        Map<String, ArrayList<String>> addedOrnamentNotes = OrnamentationMap.renderGlobalOrnamentationToParts(this.getAllMsmPartsAffectedByGlobalMap(clone, Mpm.ORNAMENTATION_MAP), globalOrnamentationMap);  // add global ornamentation attributes to affected parts' notes
-        //ArticulationMap.copyArticulations(addedOrnamentNotes, globalArticulationMap);
+        OrnamentationMap.renderGlobalOrnamentationToParts(this.getAllMsmPartsAffectedByGlobalMap(clone, Mpm.ORNAMENTATION_MAP), globalOrnamentationMap);  // add global ornamentation attributes to affected parts' notes
 
         for (GenericMap m : maps) {                         // for all maps in the list of maps for timing processing
            // if(globalArticulationMap != null && globalOrnamentationMap != null)
@@ -578,8 +577,7 @@ public class Performance extends AbstractXmlSubtree {
             for (GenericMap m : maps)                                                               // for all maps in the list of maps for timing processing
                 RubatoMap.renderRubatoToMap(m, rubatoMap);                                          // rubato
 
-            //ArticulationMap.copyArticulations(addedOrnamentNotes, articulationMap);
-            addedOrnamentNotes.putAll(OrnamentationMap.renderOrnamentationToMap(score, ornamentationMap));                     // apply ornamentation (incl. pending attributes from global ornamentation), except for milliseconds effects, these come later
+           OrnamentationMap.renderOrnamentationToMap(score, ornamentationMap);                      // apply ornamentation (incl. pending attributes from global ornamentation), except for milliseconds effects, these come later
 
             for (GenericMap m : maps)                                                               // for all maps in the list of maps for timing processing
                 TempoMap.renderTempoToMap(m, this.getPPQ(), tempoMap);                              // compute millisecond dates and end dates

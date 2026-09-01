@@ -581,44 +581,4 @@ public class ArticulationMap extends GenericMap {
         if (articulationMap != null)
             articulationMap.renderArticulationToMap_millisecondModifiers(map);
     }
-
-    /**
-     * returns all articulations that are applied to noteid
-     * @param noteid the MSM note's reference (without "#")
-     * @return
-     */
-    public  ArrayList<Element> getArticulationsByNoteId(String noteid) {
-        ArrayList<Element> articulations = new ArrayList<>();
-        for(KeyValue<Double, Element> candidateEntry : this.getAllElements()) {
-            Element candidate = candidateEntry.getValue();
-            if (candidate.getAttribute("noteid") != null && candidate.getAttributeValue("noteid").equals("#" + noteid)) {
-                articulations.add(candidate);
-            }
-        }
-        return articulations;
-    }
-
-    /**
-     * copies and adds for all notes in addedNotes the articulations of the original note to the new notes
-     * @param addedNotes Map from original note id to a list of new note ids
-     * @param articulationMap
-     */
-    public static void copyArticulations(Map<String, ArrayList<String>> addedNotes, ArticulationMap articulationMap) {
-        if (addedNotes == null || articulationMap == null)
-            return;
-
-        for(Map.Entry<String, ArrayList<String>> entry : addedNotes.entrySet()) {
-            ArrayList<Element> articulations = articulationMap.getArticulationsByNoteId(entry.getKey());
-            if (articulations.isEmpty())
-                continue;
-
-            for(String noteId : entry.getValue()) {
-                for (Element articulation : articulations) {
-                    Element ornamArtic = articulation.copy();
-                    ornamArtic.addAttribute(new Attribute("noteid", "#" + noteId));
-                    articulationMap.addArticulation(Double.parseDouble(Helper.getAttributeValue("date", ornamArtic)), Helper.getAttributeValue("name.ref", ornamArtic), "#"+noteId, Helper.getAttributeValue("xml:id", ornamArtic));
-                }
-            }
-        }
-    }
 }
