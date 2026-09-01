@@ -123,7 +123,7 @@ public class OrnamentationMap extends GenericMap {
             ornament.addAttribute(new Attribute("note.order", noteIdsString.trim()));
         }
 
-        if((childNotes != null) && !childNotes.isEmpty()) {
+        if((childNotes != null)) {
             for (Element childNote : childNotes) {
                 ornament.appendChild(childNote);
             }
