@@ -1009,7 +1009,7 @@ public class Helper {
      * returns halfsteps between pname1 and pname2 (always positive)
      * @param pname1
      * @param pname2
-     * @return
+     * @return semitone difference (always positive, within an octave)
      */
     public static int getHalfstepsBetween(String pname1, String pname2) {
         return Math.abs(getHalfstepsFromC(pname2) - getHalfstepsFromC(pname1));

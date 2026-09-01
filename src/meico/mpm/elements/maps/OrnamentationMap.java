@@ -367,7 +367,7 @@ public class OrnamentationMap extends GenericMap {
             StringBuilder chord = new StringBuilder("[");
             boolean isCollectingChord = false;
 
-            for(int j = 0; j < noteOrder.size();) {
+            for(int j = 0; j < noteOrder.size(); /**/) {
                 String order = noteOrder.get(j);
 
                 if(!isCollectingChord) {
@@ -943,6 +943,10 @@ public class OrnamentationMap extends GenericMap {
             this.chordSequence = chordSequence;
         }
 
+        /**
+         * returns the first note of the chord sequence (date-wise), or null if none found
+         * @return the first note, or null if none found
+         */
         private MsmNoteElement getFirstNote () {
             Element candidate = null;
 
@@ -961,6 +965,10 @@ public class OrnamentationMap extends GenericMap {
             return new MsmNoteElement(candidate);
         }
 
+        /**
+         * returns the last note of the chord sequence (date-wise), or null if none found
+         * @return the last note, or null if none found
+         */
         private MsmNoteElement getLastNote() {
             Element candidate = null;
 
@@ -1084,7 +1092,7 @@ public class OrnamentationMap extends GenericMap {
                                 dateEndPerfAtt.setValue(String.valueOf(Double.parseDouble(dateEndPerfAtt.getValue()) + ornamentDateOffset)); // update the end date of the note
                         } else {                                                                        // ornament.noteOff.shift="false", so we need to update duration.perf; thus, date.end.perf stays the same
                         if (durationPerfAtt != null)
-                            durationPerfAtt.setValue(String.valueOf(Double.parseDouble(durationPerfAtt.getValue()) - ornamentDateOffset));;
+                            durationPerfAtt.setValue(String.valueOf(Double.parseDouble(durationPerfAtt.getValue()) - ornamentDateOffset));
                         }
                     }
                 }

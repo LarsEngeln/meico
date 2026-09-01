@@ -502,6 +502,7 @@ public class OrnamentDef extends AbstractDef {
          *      - ornament.duration, ornament.milliseconds.duration (absolute duration), or ornament.relative.duration)
          *      - ornament.noteoff.shift (true/false)
          * @param dateOffset the offset to the date/milliseconds.date of the chord/notes
+         * @param duration
          * @param chord
          * @param previous the previous chord, so we can treat its duration according to the chords offset, or null
          * @return the chord, if its duration needs treatment along the processing of the next chord (then as previous); otherwise null

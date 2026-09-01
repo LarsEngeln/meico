@@ -3305,6 +3305,11 @@ public class Mei2MsmMpmConverter implements ConversionContext, NoteProcessor {
         }
     }
 
+    /**
+     * converts a MeiElementHelper into a new MsmNoteElement
+     * @param meiNote MeiElementHelper to be converted
+     * @return converted MsmNoteElement
+     */
     public MsmNoteElement meiNote2MsmNote(MeiElementHelper meiNote) {
         double date = this.getMidiTime();
 
