@@ -785,7 +785,7 @@ public class OrnamentationMap extends GenericMap {
 
                 cursor = entryResult.getKey() + entryResult.getValue();
                 //entry.calcEffectives();
-                lastNote = entry.getLatestNote();
+                lastNote = entry.getLastNote();
             }
 
             double neededSpace = 0.0f;
@@ -812,7 +812,7 @@ public class OrnamentationMap extends GenericMap {
                 entry.effectiveEnd = entry.effectiveStart + entry.effectiveLength;
 
                 cursor = entryResult.getKey() + entryResult.getValue();
-                lastNote = entry.getLatestNote();
+                lastNote = entry.getLastNote();
             }
             lastNote = null;
 
@@ -961,7 +961,7 @@ public class OrnamentationMap extends GenericMap {
             return new MsmNoteElement(candidate);
         }
 
-        private MsmNoteElement getLatestNote () {
+        private MsmNoteElement getLastNote() {
             Element candidate = null;
 
             double latestEndDate = -Double.MAX_VALUE;
