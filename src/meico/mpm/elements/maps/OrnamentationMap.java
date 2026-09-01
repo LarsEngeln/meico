@@ -145,6 +145,19 @@ public class OrnamentationMap extends GenericMap {
      * add an ornament element to the ornamentationMap
      * @param date
      * @param nameRef
+     * @param scale
+     * @param noteOrder
+     * @param id
+     * @return the index at which the element has been added
+     */
+    public int addOrnament(double date, String nameRef, double scale, ArrayList<String> noteOrder, String id) {
+        return this.addOrnament(date, nameRef, scale, noteOrder, null, 0, id, null);
+    }
+
+    /**
+     * add an ornament element to the ornamentationMap
+     * @param date
+     * @param nameRef
      * @return the index at which the element has been added
      */
     public int addOrnament(double date, String nameRef) {
