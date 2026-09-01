@@ -6,6 +6,7 @@ import meico.mpm.elements.maps.data.OrnamentData;
 import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
 import meico.msm.MsmNoteElement;
+import meico.xml.RichElement;
 import meico.supplementary.KeyValue;
 import nu.xom.Attribute;
 import nu.xom.Element;
@@ -336,7 +337,7 @@ public class OrnamentationMap extends GenericMap {
         Map<String, ArrayList<String>> addedNotes = new HashMap<>();
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
-            MsmNoteElement ornament = new MsmNoteElement(this.getElement(i));
+            RichElement ornament = new RichElement(this.getElement(i));
             String correspondenceId = ornament.get("noteid");
             MsmNoteElement principalNote = getElementById(notes, correspondenceId);
 
@@ -347,7 +348,7 @@ public class OrnamentationMap extends GenericMap {
             }
 
             ornament.copyValue("date", principalNote);
-            ArrayList<MsmNoteElement> children = ornament.getChildrenAsMsmElements();
+            ArrayList<MsmNoteElement> children = new MsmNoteElement(ornament.getElement()).getChildrenAsMsmElements();
             ArrayList<String> noteOrder = new ArrayList<>(Arrays.asList(ornament.get("note.order").replaceAll(":\\|:", ":| |:").split(" ")));
             Map<Integer, Integer> repeats = new HashMap<>();
 
