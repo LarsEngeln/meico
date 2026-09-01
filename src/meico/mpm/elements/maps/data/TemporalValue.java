@@ -493,7 +493,7 @@ public class TemporalValue {
      * @param valueDomain
      */
     public void fromString(String valueDomain) {
-        Pattern pattern = Pattern.compile("^(\\d+)(ms|th|%|ticks|\\?)$");  // checks string if it is a valid value + unit string
+        Pattern pattern = Pattern.compile("^([+-]?\\d+(?:\\.\\d+)?)(ms|th|%|ticks|\\?)$");  // checks string if it is a valid value + unit string
         Matcher m = pattern.matcher(valueDomain.trim());
         if (m.matches()) {
             setValue(Double.parseDouble(m.group(1)));
