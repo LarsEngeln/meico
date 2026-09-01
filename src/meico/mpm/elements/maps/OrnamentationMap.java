@@ -35,8 +35,6 @@ public class OrnamentationMap extends GenericMap {
         super(xml);
     }
 
-    private ArrayList<OrnamentEntry> ornamentEntries = new ArrayList<>();
-
     /**
      * OrnamentationMap factory
      * @return
@@ -234,14 +232,6 @@ public class OrnamentationMap extends GenericMap {
         }
 
         return null;
-    }
-
-    /**
-     * returns list of ornamentEntries that are created while "apply"ing
-     * @return
-     */
-    public ArrayList<OrnamentEntry> getOrnamentEntries() {
-        return ornamentEntries;
     }
 
     /**
@@ -546,17 +536,18 @@ public class OrnamentationMap extends GenericMap {
      * It also adds new notes and marks notes to be deleted from the performance via the respective OrnamentData.apply() invocation.
      * @param maps list of MSM scores
      */
-    private Map<String, ArrayList<String>> apply(ArrayList<GenericMap> maps) {
-        Map<String, ArrayList<String>> addedNotes = new HashMap<>();
+    private ArrayList<OrnamentEntry> apply(ArrayList<GenericMap> maps) {
+        ArrayList<OrnamentEntry> ornamentEntries = new ArrayList<>();
 
         if (maps.isEmpty())
-            return addedNotes;
+            return ornamentEntries;
 
         if ((this.getLocalHeader() == null) && (this.getGlobalHeader() == null)) {
             System.err.println("Error processing MPM ornamentationMap: no header defined to look up ornamentationStyle.");
-            return addedNotes;
+            return ornamentEntries;
         }
 
+        Map<String, ArrayList<String>> addedNotes = new HashMap<>();
         for(GenericMap map : maps) {
             addedNotes = applyNotesToMaps(map);
         }
@@ -655,10 +646,10 @@ public class OrnamentationMap extends GenericMap {
                 });
             }
 
-            getOrnamentEntries().add(new OrnamentEntry(od, chordSequence));
+            ornamentEntries.add(new OrnamentEntry(od, chordSequence));
         }
 
-        return addedNotes;
+        return ornamentEntries;
     }
 
     /**
@@ -688,7 +679,7 @@ public class OrnamentationMap extends GenericMap {
      * @param maps
      * @return
      */
-    private Map<String, ArrayList<String>> spaceOrnaments(ArrayList<GenericMap> maps) {
+    private Map<String, ArrayList<String>> spaceOrnaments(ArrayList<GenericMap> maps, ArrayList<OrnamentEntry> ornamentEntries) {
         Map<String, ArrayList<String>> addedNotes = new HashMap<>();
 
         if (maps.isEmpty())
@@ -698,8 +689,6 @@ public class OrnamentationMap extends GenericMap {
             System.err.println("Error processing MPM ornamentationMap: no header defined to look up ornamentationStyle.");
             return addedNotes;
         }
-
-        ArrayList<OrnamentEntry> ornamentEntries = this.getOrnamentEntries();
 
         // create a hashmap of all note elements, hashed by their ID, so we have quick access to them later on
         HashMap<String, Element> notes = getNotes(maps);
@@ -1111,9 +1100,9 @@ public class OrnamentationMap extends GenericMap {
         ArrayList<GenericMap> maps = new ArrayList<GenericMap>();
         maps.add(map);
 
-        ornamentationMap.apply(maps);
+        ArrayList<OrnamentEntry> ornamentEntries = ornamentationMap.apply(maps);
 
-        ornamentationMap.spaceOrnaments(maps);
+        ornamentationMap.spaceOrnaments(maps, ornamentEntries);
 
         for (KeyValue<Double, Element> e : map.getAllElementsOfType("note")) {
             Element note = e.getValue();
