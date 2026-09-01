@@ -1,4 +1,4 @@
-package meico.msm;
+package meico.msm.elements;
 
 import meico.mei.Helper;
 import meico.xml.RichElement;

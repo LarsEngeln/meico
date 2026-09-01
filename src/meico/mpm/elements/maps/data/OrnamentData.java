@@ -2,7 +2,7 @@ package meico.mpm.elements.maps.data;
 
 import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
-import meico.msm.MsmNoteElement;
+import meico.msm.elements.MsmNoteElement;
 import meico.supplementary.KeyValue;
 import nu.xom.Attribute;
 import nu.xom.Element;

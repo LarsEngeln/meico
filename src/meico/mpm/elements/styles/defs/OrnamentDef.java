@@ -3,7 +3,7 @@ package meico.mpm.elements.styles.defs;
 import meico.mei.Helper;
 import meico.mpm.Mpm;
 import meico.mpm.elements.maps.data.TemporalValue;
-import meico.msm.MsmNoteElement;
+import meico.msm.elements.MsmNoteElement;
 import meico.supplementary.KeyValue;
 import nu.xom.Attribute;
 import nu.xom.Element;

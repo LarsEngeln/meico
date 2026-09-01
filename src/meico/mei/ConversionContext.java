@@ -1,7 +1,7 @@
 package meico.mei;
 
 import meico.mpm.elements.Performance;
-import meico.msm.MsmNoteElement;
+import meico.msm.elements.MsmNoteElement;
 import nu.xom.Element;
 
 import java.util.ArrayList;

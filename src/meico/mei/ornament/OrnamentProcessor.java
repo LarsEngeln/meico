@@ -10,7 +10,7 @@ import meico.mpm.elements.maps.OrnamentationMap;
 import meico.mpm.elements.maps.data.OrnamentData;
 import meico.mpm.elements.styles.OrnamentationStyle;
 import meico.mpm.elements.styles.defs.OrnamentDef;
-import meico.msm.MsmNoteElement;
+import meico.msm.elements.MsmNoteElement;
 import meico.supplementary.KeyValue;
 import meico.xml.RichElement;
 import nu.xom.Attribute;

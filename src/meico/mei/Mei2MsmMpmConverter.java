@@ -20,7 +20,7 @@ import meico.mpm.elements.styles.defs.DynamicsDef;
 import meico.mpm.elements.styles.defs.TempoDef;
 import meico.msm.Goto;
 import meico.msm.Msm;
-import meico.msm.MsmNoteElement;
+import meico.msm.elements.MsmNoteElement;
 import meico.supplementary.KeyValue;
 import nu.xom.*;
 
