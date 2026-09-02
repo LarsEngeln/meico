@@ -35,6 +35,26 @@ public class OrnamentDictionary {
         return ornamentLookup;
     }
 
+    /**
+     * checks if the lookUp has alterations for the given ornamentName
+     * @param ornamentName
+     * @return true if ornamentName is in the lookUp, false otherwise
+     */
+    public Boolean has(String ornamentName) {
+        return ornamentLookup.containsKey(ornamentName);
+    }
+
+    /**
+     * return the alterations for the given ornamentName, null if no alterations are found
+     * @param ornamentName
+     * @return alterations of ornamentName, or null
+     */
+    public List<String> get(String ornamentName) {
+        if(has(ornamentName))
+            return ornamentLookup.get(ornamentName);
+        else
+            return null;
+    }
 
     /**
      * creates the lookUp table with ornament descriptions. Names for lookUp are identical to getOrnamentFullName results

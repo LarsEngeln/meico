@@ -23,23 +23,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class OrnamentExpander {
     public Mei mei;
     private Map<String, OrnamentExpansion> ornamentExpansions   = new HashMap<String, OrnamentExpansion>(); // ornament's startid to ornamentExpansion
-    private Map<String, List<String>> ornamentLookup            = new HashMap<String, List<String>>();
+    private OrnamentDictionary ornamentDictionary               = new OrnamentDictionary();
 
     private ArrayList<String> prevOrnams                        = new ArrayList<String>(); // already expanded ornams with that are "previous" to another ornam
     private Map<String, Element> nextOrnams                     = new HashMap<String, Element>(); // prevId to nextElement - remember "next" ornament to be processed, if "prev"-Id have not been processed yet - so, if "prev"/"next" is not well sorted in the MEI
 
     private Map<String, Map<String, String>> currentAccids      = new HashMap<>(); // all accids in the current measure, "oct"->"pname"->"accid"
     private Map<String, String> currentKey                      = new HashMap<>(); // accids of the current key, "pname"->"accid"
-    private MeiElementHelper currentMeasure                           = null;
-    private ArrayList<MeiElementHelper> currentSlurs                  = new ArrayList<>();   // cached slurs in the current measure
-    private ArrayList<MeiElementHelper> currentGraces                 = new ArrayList<>();   // cached graces in the current measure, to be added at the end of the measure
-    private Map<String, MeiElementHelper> currentNotes                = new HashMap<>();   // cached notes in the current measure, to be used for grace note expansion
+    private MeiElementHelper currentMeasure                     = null;
+    private ArrayList<MeiElementHelper> currentSlurs            = new ArrayList<>();   // cached slurs in the current measure
+    private ArrayList<MeiElementHelper> currentGraces           = new ArrayList<>();   // cached graces in the current measure, to be added at the end of the measure
+    private Map<String, MeiElementHelper> currentNotes          = new HashMap<>();   // cached notes in the current measure, to be used for grace note expansion
 
     /**
      * default constructor, if MEI is not yet available
      */
     public OrnamentExpander()  {
-        this.ornamentLookup = new OrnamentDictionary().getOrnamentLookup();
     }
 
     /**
@@ -417,7 +416,7 @@ public class OrnamentExpander {
     private void expandOrnamentsElement(Element element) {
         MeiElementHelper ornament = new MeiElementHelper(element);
         String ornamFullName = getOrnamentFullName(ornament);
-        if(ornamFullName == null || ornamFullName.equals("") || !ornamentLookup.containsKey(ornamFullName))
+        if(ornamFullName == null || ornamFullName.equals("") || !ornamentDictionary.has(ornamFullName))
             return;     // if I am not yet supported
 
         if (checkForCombinedOrnaments(ornament))
@@ -471,7 +470,7 @@ public class OrnamentExpander {
             delayed = " delayed";
         ornamentExpansion.setLabel(ornamentName + delayed);
 
-        List<String> alterations = ornamentLookup.get(ornamentName);    // get alterations from dictionary
+        List<String> alterations = ornamentDictionary.get(ornamentName);    // get alterations from dictionary
 
         int pnDur = Integer.parseInt(principalNote.get("dur"));
         int noteDuration = 32;
