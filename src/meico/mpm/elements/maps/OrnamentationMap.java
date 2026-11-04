@@ -439,9 +439,22 @@ public class OrnamentationMap extends GenericMap {
                 }
                 for(MsmNoteElement child : children) {
                     if(child.getId().equals(chords.get(rptStart).replaceAll("\\[|\\]", "").trim())) {
-                        MsmNoteElement note = new MsmNoteElement(child.getElement());
-                        if(note.has("intm") && note.get("intm").equals("0.0hs"))
-                            notesToAdd.add(chords.get(rptStart)); // always land on principal note of the repetition, might add doubles -> need to sanitize
+                        if(child.has("intm") && child.get("intm").equals("0.0hs")) {
+                            boolean nextChordHasPrincipalPitch = false;
+                            Double pitch = child.getAsDouble("midi.pitch");
+                            if (rptEnd < chords.size() && pitch != null) {
+                                List<String> nextChord = Arrays.asList(
+                                        chords.get(rptEnd).replaceAll("\\[|\\]", "").trim().split("\\s+"));
+                                for (MsmNoteElement next : children) {
+                                    if (nextChord.contains(next.getId()) && pitch.equals(next.getAsDouble("midi.pitch"))) {
+                                        nextChordHasPrincipalPitch = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!nextChordHasPrincipalPitch)
+                                notesToAdd.add(chords.get(rptStart));
+                        }
                         break;
                     }
                 }
