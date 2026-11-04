@@ -290,10 +290,12 @@ public class OrnamentDef extends AbstractDef {
         public TemporalSpread(Element xml) {
             this.xml = xml;
 
-            Attribute domain = Helper.getAttribute("time.unit", xml);
+            // ticks is default
             frameStart.setDomain(TemporalValue.Domain.Ticks);
             frameLength.setDomain(TemporalValue.Domain.Ticks);
 
+            // fallback to time.unit (so set it here, gets overwritten if frame.offset or frameLength has a unit)
+            Attribute domain = Helper.getAttribute("time.unit", xml);
             if (domain != null) {
                 switch (domain.getValue()) {
                     case "milliseconds":
@@ -316,11 +318,15 @@ public class OrnamentDef extends AbstractDef {
                 start = Helper.getAttribute("frame.start", xml);
             }
             if (start != null)
-                this.frameStart.setValue(start.getValue());
+                this.frameStart.fromString(start.getValue());
 
             Attribute length = Helper.getAttribute("frameLength", xml);
-            if (length != null)
-                this.setFrameLength(Double.parseDouble(length.getValue()));
+            if (length != null) {
+                this.frameLength.fromString(length.getValue());
+                this.setFrameLength(this.frameLength.getValue());
+            }
+            if (this.frameStart.isUnknown() || this.frameLength.isUnknown())
+                throw new IllegalArgumentException("Unsupported temporal spread frame domain");
 
             Attribute intensityAtt = Helper.getAttribute("intensity", xml);
             if (intensityAtt != null)
@@ -598,25 +604,10 @@ public class OrnamentDef extends AbstractDef {
         public Element generateXML() {
             Element ts = new Element("temporalSpread", Mpm.MPM_NAMESPACE);
 
-            if (this.frameStart.getValue() != 0.0)
-                ts.addAttribute(new Attribute("frame.start", Double.toString(this.frameStart.getValue())));
-            if (this.frameLength.getValue() != 0.0)
-                ts.addAttribute(new Attribute("frameLength", Double.toString(this.frameLength.getValue())));
-
-            switch (this.frameStart.getDomain()) {
-                case Ticks:
-                    // not necessary because this is the default value when absent
-                    ts.addAttribute(new Attribute("time.unit", "ticks"));
-                    break;
-                case Milliseconds:
-                    ts.addAttribute(new Attribute("time.unit", "milliseconds"));
-                    break;
-                case Relative:
-                    ts.addAttribute(new Attribute("time.unit", "relative"));
-                    break;
-//            case RelativeToNoteDuration:
-//                throw new UnsupportedDataTypeException("The feature TemporalValue.Domain.RelativeToNoteDuration is not yet supported.");
-            }
+            if (this.frameStart.isUnknown() || this.frameLength.isUnknown())
+                throw new IllegalStateException("Unsupported temporal spread frame domain");
+            ts.addAttribute(new Attribute("frame.offset", this.frameStart.toString()));
+            ts.addAttribute(new Attribute("frameLength", this.frameLength.toString()));
 
             if (this.intensity != 1.0)
                 ts.addAttribute(new Attribute("intensity", Double.toString(this.intensity)));

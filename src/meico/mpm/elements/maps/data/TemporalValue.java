@@ -489,22 +489,24 @@ public class TemporalValue {
     }
 
     /**
-     * sets value and domain from string with value + unit
+     * Sets value and domain from a string with an optional unit. Without a unit, the domain is unchanged.
      * @param valueDomain
+     * @throws IllegalArgumentException if the value or unit is invalid
      */
     public void fromString(String valueDomain) {
         Pattern pattern = Pattern.compile("^([+-]?\\d+(?:\\.\\d+)?)(ms|th|%|ticks|\\?)$");  // checks string if it is a valid value + unit string
         Matcher m = pattern.matcher(valueDomain.trim());
         if (m.matches()) {
-            setValue(Double.parseDouble(m.group(1)));
-            setDomain(fromDomainString(m.group(2)));
+            double parsedValue = Double.parseDouble(m.group(1));
+            setValue(parsedValue);
+
+            Domain parsedDomain = fromDomainString(m.group(2));
+            if (parsedDomain != null)
+                setDomain(parsedDomain);
+
             return;
         }
-        try {
-            setValue(Double.parseDouble(valueDomain));
-        } catch (NumberFormatException e) {
-            // do nothing, value remains unchanged
-        }
+        setValue(Double.parseDouble(valueDomain.trim()));
     }
 
     /**

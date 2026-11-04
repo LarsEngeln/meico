@@ -64,7 +64,7 @@ public class OrnamentData {
         }
 
         this.notes = new ArrayList<>();
-        xml.getChildElements("ornamentNote").forEach(note -> { this.notes.add(note); });
+        xml.getChildElements("note").forEach(note -> { this.notes.add(note); });
 
         Attribute id = xml.getAttribute("id", "http://www.w3.org/XML/1998/namespace");
         if (id != null)
