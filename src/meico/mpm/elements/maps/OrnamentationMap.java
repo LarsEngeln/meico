@@ -344,6 +344,15 @@ public class OrnamentationMap extends GenericMap {
 
         for (int i = 0; i < this.size(); ++i) {  // for each ornament
             RichElement ornament = new RichElement(this.getElement(i));
+            if (!ornament.getElement().getLocalName().equals("ornament"))
+                continue;
+
+            String orderAttribute = ornament.get("note.order");
+            if (orderAttribute == null || orderAttribute.trim().equals("ascending pitch") || orderAttribute.trim().equals("descending pitch")) {
+                ornament.set("note.order.perf", orderAttribute == null ? "ascending pitch" : orderAttribute.trim());
+                continue;
+            }
+
             String correspondenceId = normalizeNoteReference(ornament.get("noteid"));
             MsmNoteElement principalNote = getElementById(notes, correspondenceId);
 
@@ -514,10 +523,12 @@ public class OrnamentationMap extends GenericMap {
      * @return possibly null if not found
      */
     private static MsmNoteElement getElementById(ArrayList<KeyValue<Double, Element>> elements, String id) {
+        if (id == null)
+            return null;
         MsmNoteElement result = null;
         for(KeyValue<Double, Element> dateElement : elements) {  // find the element
             MsmNoteElement candidate = new MsmNoteElement(dateElement.getValue());
-            if (candidate.getId().equals(id)) {
+            if (id.equals(candidate.getId())) {
                 result = candidate;
                 break;
             }
@@ -607,7 +618,7 @@ public class OrnamentationMap extends GenericMap {
                 continue;
 
             // determine the chord sequence
-            int noteOrderAscending = 0;
+            int noteOrderAscending = 1;
             ArrayList<ArrayList<Element>> chordSequence = new ArrayList<>();
             Attribute noteOrderAtt = ornamentXml.getAttribute("note.order.perf");
             if (noteOrderAtt != null) {
@@ -619,38 +630,59 @@ public class OrnamentationMap extends GenericMap {
                     case "descending pitch":
                         noteOrderAscending = -1;
                         break;
+                    default:
+                        noteOrderAscending = 0;
                 }
 
-                od.noteOrder = new ArrayList<>(Arrays.asList(no.replaceAll("#", "").split("\\s+")));
-                if (od.noteOrder.isEmpty())
-                    continue;
+                if (noteOrderAscending == 0) {
+                    od.noteOrder = new ArrayList<>(Arrays.asList(no.replaceAll("#", "").split("\\s+")));
+                    ArrayList<Element> chord = new ArrayList<>();
+                    boolean isCollectingChord = false;
+                    for (String ref : od.noteOrder) {
+                        if(!isCollectingChord)
+                            chord = new ArrayList<>();
 
-                noteOrderAscending = 0;
+                        if(ref.equals("[")) {
+                            isCollectingChord = true;
+                            continue;
+                        }
+                        if(ref.equals("]")) {
+                            isCollectingChord = false;
+                            if(!chord.isEmpty()) {
+                                chordSequence.add(chord);
+                            }
+                            continue;
+                        }
 
-                ArrayList<Element> chord = new ArrayList<>();
-                boolean isCollectingChord = false;
-                for (String ref : od.noteOrder) {
-                    if(!isCollectingChord)
-                        chord = new ArrayList<>();
+                        Element note = notes.get(ref);
+                        if (note != null) {
+                            chord.add(note);
+                        }
 
-                    if(ref.equals("[")) {
-                        isCollectingChord = true;
-                        continue;
-                    }
-                    if(ref.equals("]")) {
-                        isCollectingChord = false;
-                        if(!chord.isEmpty()) {
+                        if(!isCollectingChord && !chord.isEmpty()) {
                             chordSequence.add(chord);
                         }
+                    }
+                }
+            }
+
+            if (noteOrderAscending != 0) {
+                double date = od.date;
+                if (od.correspondence != null && !od.correspondence.isEmpty()) {
+                    Element principalNote = notes.get(normalizeNoteReference(od.correspondence));
+                    if (principalNote == null) {
+                        System.err.println("Cannot resolve ornament noteid " + od.correspondence + ".");
                         continue;
                     }
+                    date = Double.parseDouble(Helper.getAttributeValue("date", principalNote));
+                }
 
-                    Element note = notes.get(ref);
-                    if (note != null) {
-                        chord.add(note);
-                    }
-
-                    if(!isCollectingChord && !chord.isEmpty()) {
+                for (GenericMap map : maps) {
+                    for (KeyValue<Double, Element> item : map.getAllElementsAt(date)) {
+                        if (item.getKey() != date || !item.getValue().getLocalName().equals("note"))
+                            continue;
+                        ArrayList<Element> chord = new ArrayList<>();
+                        chord.add(item.getValue());
                         chordSequence.add(chord);
                     }
                 }
@@ -668,7 +700,7 @@ public class OrnamentationMap extends GenericMap {
                 });
             }
 
-            ornamentEntries.add(new OrnamentEntry(od, chordSequence));
+            ornamentEntries.add(new OrnamentEntry(od, chordSequence, noteOrderAscending != 0));
         }
 
         return ornamentEntries;
@@ -716,6 +748,13 @@ public class OrnamentationMap extends GenericMap {
         HashMap<String, Element> notes = getNotes(maps);
         Map<String, ArrayList<OrnamentEntry>> groups = new LinkedHashMap<>();
         for (OrnamentEntry entry : ornamentEntries) {
+            if (entry.pitchOrdered) {
+                double duration = getPrincipalDuration(entry.chordSequence);
+                double[] frame = resolveFrameValues(entry.od, duration);
+                double start = isAtEnd(entry.od) ? duration - frame[1] + frame[0] : frame[0];
+                entry.od.apply(entry.chordSequence, start, frame[1], null);
+                continue;
+            }
             groups.computeIfAbsent(normalizeNoteReference(entry.od.correspondence), k -> new ArrayList<>()).add(entry);
         }
 
@@ -825,6 +864,10 @@ public class OrnamentationMap extends GenericMap {
 
             ArrayList<OrnamentEntry> orderedEntries = new ArrayList<>(group);
             orderedEntries.sort(Comparator.comparingDouble(entry -> entry.effectiveStart));
+
+            // A space is represented by a rest. It provides timing, not a sounding principal note.
+            if (principalNote != null && principalNote.getElement().getLocalName().equals("rest"))
+                continue;
 
             // Cut the principal note: carve the ornament time frame(s) out of the principal
             // note's sounding duration so that ornament notes and principal note do not overlap.
@@ -1021,12 +1064,14 @@ public class OrnamentationMap extends GenericMap {
     private static class OrnamentEntry {
         final OrnamentData od;
         final ArrayList<ArrayList<Element>> chordSequence;
+        final boolean pitchOrdered;
         double effectiveStart;
         double effectiveLength;
         double effectiveEnd;
-        OrnamentEntry(OrnamentData od, ArrayList<ArrayList<Element>> chordSequence) {
+        OrnamentEntry(OrnamentData od, ArrayList<ArrayList<Element>> chordSequence, boolean pitchOrdered) {
             this.od = od;
             this.chordSequence = chordSequence;
+            this.pitchOrdered = pitchOrdered;
         }
 
         /**

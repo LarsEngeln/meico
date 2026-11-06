@@ -574,7 +574,7 @@ public class Mei2MsmMpmConverter implements ConversionContext, NoteProcessor {
                     break;                                                      // process its contents
 
                 case "supplied":                                                // contains material supplied by the transcriber or editor in place of text which cannot be read, either because of physical damage or loss in the original or because it is illegible for any reason
-                    if(this.ornamentProcessor.processOrnament(new MeiElementHelper(e, true))) {
+                    if(this.ornamentProcessor.processOrnament(new MeiElementHelper(e))) {
                         continue;
                     }
                     break;                                                      // process its content
