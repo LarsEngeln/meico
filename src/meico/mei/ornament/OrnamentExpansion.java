@@ -116,14 +116,24 @@ public class OrnamentExpansion {
      * @param ornamentExpansion
      */
     public void append(OrnamentExpansion ornamentExpansion) {
-        MeiElementHelper child = ornamentExpansion.getGroupElement();
-        ParentNode parent = child.getElement().getParent();
-        if (parent != null) {
-            parent.removeChild(child.getElement());
+        insert(ornamentExpansion, ornamentExpansionElement.getChildrenAsMeiElements().size());
+    }
+
+    /**
+     * Inserts all segments of another expansion at the given position.
+     * @param ornamentExpansion the expansion to insert
+     * @param index segment index
+     */
+    public void insert(OrnamentExpansion ornamentExpansion, int index) {
+        ArrayList<MeiElementHelper> children = ornamentExpansion.getOrnamentExpansionElement().getChildrenAsMeiElements();
+        for (MeiElementHelper child : children) {
+            ParentNode parent = child.getElement().getParent();
+            if (parent != null)
+                parent.removeChild(child.getElement());
+            ornamentExpansionElement.getElement().insertChild(child.getElement(), index++);
         }
-        this.ornamentExpansionElement.appendChild(child);
-        ornamentExpansionElement.set("label", ornamentExpansionElement.get("label") + ", " + child.get("label"));
-        segmentLabels.addAll(ornamentExpansion.getSegmentLabels());
+        segmentLabels.addAll(index - children.size(), ornamentExpansion.getSegmentLabels());
+        ornamentExpansionElement.set("label", String.join(", ", segmentLabels));
     }
 
     /**

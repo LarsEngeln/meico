@@ -342,7 +342,7 @@ public class OrnamentProcessor {
                 addMeiNoteToOrnamentData(elem, od);
             }
 
-            addToOrnamentationMap(new MeiElementHelper(principal), od);
+            addToOrnamentationMap(element, od);
         }
         return true;
     }

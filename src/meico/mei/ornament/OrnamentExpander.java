@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class OrnamentExpander {
     public Mei mei;
     private Map<String, OrnamentExpansion> ornamentExpansions   = new HashMap<String, OrnamentExpansion>(); // ornament's startid to ornamentExpansion
+    private Map<String, Integer> precedingGraceCounts           = new HashMap<>();
     private OrnamentDictionary ornamentDictionary               = new OrnamentDictionary();
 
     private ArrayList<String> prevOrnams                        = new ArrayList<String>(); // already expanded ornams with that are "previous" to another ornam
@@ -101,13 +102,15 @@ public class OrnamentExpander {
                     expandOrnamentsElement(e);                                  // collect ornaments
                     continue;
                 case "graceGrp":                                                // collect graces, fiorituras
-                    MeiElementHelper graceGrp = new MeiElementHelper(e, false);
-                    currentGraces.add(graceGrp);
+                    if (!isInsideGraceGrp(e))
+                        currentGraces.add(new MeiElementHelper(e, false));
                     break;
                 case "note":
                     MeiElementHelper note = new MeiElementHelper(e, false);
-                    if(note.has("grace"))
-                        currentGraces.add(note);                                // collect graces
+                    if(note.has("grace")) {
+                        if (!isInsideGraceGrp(e))
+                            currentGraces.add(note);                            // collect graces
+                    }
                     else
                         currentNotes.put(note.getId(), note);                   // if not a grace, collect notes
                     String accid = note.get("accid");                           // collect accidentals
@@ -119,8 +122,10 @@ public class OrnamentExpander {
                     continue;
                 case "chord":
                     MeiElementHelper chord = new MeiElementHelper(e, false);
-                    if(chord.has("grace"))
-                        currentGraces.add(chord);                               // collect graces
+                    if(chord.has("grace")) {
+                        if (!isInsideGraceGrp(e))
+                            currentGraces.add(chord);                           // collect graces
+                    }
                     else
                         currentNotes.put(chord.getId(), chord);                 // if not a grace, collect chords
                     break;                                                      // process children of chord
@@ -152,6 +157,21 @@ public class OrnamentExpander {
             this.expandOrnaments(e);    // if breaked, process children
         }
 
+    }
+
+    private boolean isInsideGraceGrp(Element element) {
+        for (Element parent = Helper.getParentElement(element); parent != null; parent = Helper.getParentElement(parent)) {
+            if (parent.getLocalName().equals("graceGrp"))
+                return true;
+            if (parent.getLocalName().equals("layer"))
+                break;
+        }
+        return false;
+    }
+
+    private boolean isGraceEvent(Element element) {
+        return (element.getLocalName().equals("note") || element.getLocalName().equals("chord"))
+                && element.getAttribute("grace") != null;
     }
 
     /**
@@ -211,21 +231,23 @@ public class OrnamentExpander {
         // No slur found: walk siblings until possible correspondence (e.g. a note or chord) is found (or null)
         Element previousElement = Helper.getPreviousSiblingElement(element.getElement());
         while (previousElement != null
-                && !previousElement.getLocalName().equals("note")
+                && (isGraceEvent(previousElement)
+                || (!previousElement.getLocalName().equals("note")
                 && !previousElement.getLocalName().equals("chord")
                 && !previousElement.getLocalName().equals("beam")
                 && !previousElement.getLocalName().equals("rest")
-                && !previousElement.getLocalName().equals("space")
+                && !previousElement.getLocalName().equals("space")))
         )
             previousElement = Helper.getPreviousSiblingElement(previousElement);
 
         Element nextElement = Helper.getNextSiblingElement(element.getElement());
         while (nextElement != null
-                && !nextElement.getLocalName().equals("note")
+                && (isGraceEvent(nextElement)
+                || (!nextElement.getLocalName().equals("note")
                 && !nextElement.getLocalName().equals("chord")
                 && !nextElement.getLocalName().equals("beam")
                 && !nextElement.getLocalName().equals("rest")
-                && !nextElement.getLocalName().equals("space")
+                && !nextElement.getLocalName().equals("space")))
         )
             nextElement = Helper.getNextSiblingElement(nextElement);
 
@@ -639,6 +661,8 @@ public class OrnamentExpander {
         OrnamentExpansion existingOrnamentExpansion = ornamentExpansions.get(principalNote.getId());
         if(existingOrnamentExpansion == null) {
             ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
+            if (!appendLast)
+                precedingGraceCounts.put(principalNote.getId(), ornamentExpansion.getSegmentLabels().size());
             Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement().getElement(), principalNote.getElement());
             return;
         }
@@ -647,11 +671,10 @@ public class OrnamentExpander {
             existingOrnamentExpansion.append(ornamentExpansion);
         }
         else {
-            ornamentExpansion.append(existingOrnamentExpansion);
-            existingOrnamentExpansion.getOrnamentExpansionElement().removeParent();
-
-            ornamentExpansions.put(principalNote.getId(), ornamentExpansion);
-            Helper.appendChildAfterSibling(ornamentExpansion.getOrnamentExpansionElement().getElement(), principalNote.getElement());
+            int index = precedingGraceCounts.containsKey(principalNote.getId())
+                    ? precedingGraceCounts.get(principalNote.getId()) : 0;
+            existingOrnamentExpansion.insert(ornamentExpansion, index);
+            precedingGraceCounts.put(principalNote.getId(), index + ornamentExpansion.getSegmentLabels().size());
         }
     }
 
