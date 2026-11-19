@@ -29,7 +29,7 @@ public class RichElement {
      */
     public RichElement(Element element, boolean deepCopy) {
         if(deepCopy) {
-            this.element = Helper.cloneElement(element, true);
+            this.element = element.copy();
         }
         else this.element = element;
 
@@ -79,7 +79,7 @@ public class RichElement {
      * @return
      */
     public String createNewId() {
-        this.id = Helper.addUUID(this.element, true);
+        this.id = Helper.addUUID(this.element, true, true);
         return getId();
     }
 
@@ -94,7 +94,7 @@ public class RichElement {
      * @return
      */
     public Element getClonedElement() {
-        return Helper.cloneElement(element, true);
+        return element.copy();
     }
 
     /**
@@ -132,8 +132,8 @@ public class RichElement {
         return null;
     }
     /**
-     * returns the value of attributeName as Double if the element has it. Hereby ".ges" (e.g. "accid.ges") is preferred.
-     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be search.
+     * returns the value of attributeName as Double. Hereby ".ges" (e.g. "accid.ges") is preferred.
+     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be searched.
      * @param attributeName
      * @return value of attributeName (preferring ".ges") or null if this attribute is not set.
      */
@@ -144,8 +144,8 @@ public class RichElement {
         return Double.valueOf(value);
     }
     /**
-     * returns the value of attributeName as Integer if the element has it. Hereby ".ges" (e.g. "accid.ges") is preferred.
-     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be search.
+     * returns the value of attributeName as Integer. Hereby ".ges" (e.g. "accid.ges") is preferred.
+     * If the element does not have such an Attribute, the matching child (e.g. <accid/>) will be searched.
      * @param attributeName
      * @return value of attributeName (preferring ".ges") or null if this attribute is not set.
      */
@@ -213,7 +213,7 @@ public class RichElement {
      * @param child
      */
     public void appendChild(Element child) {
-        child.setNamespaceURI("http://www.music-encoding.org/ns/mei");
+        child.setNamespaceURI(this.element.getNamespaceURI());
         this.element.appendChild(child);
     }
     /**
@@ -295,11 +295,12 @@ public class RichElement {
                 return (new RichElement(child)).get(attributeName);
             }
 
-            boolean ignore = false;
             for(String ignoredElementName : ignoredElementNames)
-                ignore = ignore || elementName.equals(ignoredElementName);
-            if(!ignore)
-                return (new RichElement(child).getFromChild(attributeName, ignoredElementNames));
+                if(elementName.equals(ignoredElementName)) {
+                    return null;
+                }
+
+            return (new RichElement(child).getFromChild(attributeName, ignoredElementNames));
         }
 
         return null;

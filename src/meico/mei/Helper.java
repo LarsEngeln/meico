@@ -51,8 +51,8 @@ public class Helper {
      * @param id
      * @return
      */
-    public static Element findChild(Element parent, String id) {
-        return findChild(parent, id, "id");
+    public static Element getFirstDescendantById(Element parent, String id) {
+        return getFirstDescendantByAttributeValue(parent, id, "id");
     }
 
     /**
@@ -62,32 +62,21 @@ public class Helper {
      * @param attribute
      * @return
      */
-    public static Element findChild(Element parent, String value, String attribute) {
+    public static Element getFirstDescendantByAttributeValue(Element parent, String value, String attribute) {
         LinkedList<Element> children = Helper.getAllChildElements(parent);
         for (int i = 0; i < children.size(); ++i) {
             Element el = children.get(i);
-            if(Helper.getAttribute(attribute, el) != null) {
-                String val = Helper.getAttributeValue(attribute, el);
-                if (val.equals(value))
-                    return el;
+            Attribute attr = Helper.getAttribute(attribute, el);
+            if((attr != null) && attr.getValue().equals(value)) {
+                return el;
             }
-            Element child = findChild(el, value, attribute);
+            Element child = getFirstDescendantByAttributeValue(el, value, attribute);
             if(child != null)
                 return child;
         }
         return null;
     }
-
-    /**
-     * find sibling of node by id
-     * @param node
-     * @param id
-     * @return
-     */
-    public static Element findSibling(Element node, String id) {
-        return Helper.findChild(Helper.getParentElement(node), id);
-    }
-
+    
     /**
      * get the first child of an xml element
      * @param ofThis
@@ -420,12 +409,11 @@ public class Helper {
     }
 
     /**
-     * create a deep(==true) copy of element e, or a flat (deep==false) copy of element e including its attributes but not its child elements
+     * create a flat copy of element e including its attributes but not its child elements
      * @param e
-     * @param deep
      * @return
      */
-    public static Element cloneElement(Element e, boolean deep) {
+    public static Element cloneElement(Element e) {
         if (e == null) return null;
 
         Element clone = new Element(e.getLocalName());
@@ -437,22 +425,7 @@ public class Helper {
             clone.addAttribute(att);
         }
 
-        if(deep) {
-            for(Element child : e.getChildElements()) {
-                clone.appendChild(Helper.cloneElement(child, deep));
-            }
-        }
-
         return clone;
-    }
-
-    /**
-     * create a flat copy of element e including its attributes but not its child elements
-     * @param e
-     * @return
-     */
-    public static Element cloneElement(Element e) {
-        return cloneElement(e, false);
     }
 
     /**
@@ -995,8 +968,12 @@ public class Helper {
      * @param steps Number of steps that are shifted. 0 is no shift (unison) and thereby 7 is shifting an octave.
      */
     public static void shiftNoteDiatonicly(Element note, int steps) {
+        Attribute pname = note.getAttribute("pname");
+        if(pname == null)
+            return;
+
         List<String> names = Arrays.asList( "c", "d", "e", "f", "g", "a", "b" );
-        String noteName = note.getAttributeValue("pname").toLowerCase();
+        String noteName = pname.getValue().toLowerCase();
         int index = names.indexOf(noteName);
         int shift = (index + steps);
         int shiftedOctaves = (int) Math.floor((float)shift / 7.0F);     // floor down as the "0"-octave is [0..6]
@@ -1032,7 +1009,7 @@ public class Helper {
      * returns halfsteps between pname1 and pname2 (always positive)
      * @param pname1
      * @param pname2
-     * @return
+     * @return semitone difference (always positive, within an octave)
      */
     public static int getHalfstepsBetween(String pname1, String pname2) {
         return Math.abs(getHalfstepsFromC(pname2) - getHalfstepsFromC(pname1));

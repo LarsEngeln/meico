@@ -1,5 +1,6 @@
 package meico.mei;
 
+import meico.mei.ornament.OrnamentExpander;
 import meico.mpm.Mpm;
 import meico.msm.Msm;
 import meico.musicxml.MusicXml;
@@ -21,8 +22,6 @@ import java.util.*;
  */
 
 public class Mei extends meico.xml.XmlBase implements Cloneable {
-
-    boolean areOrnamentsExpanded = false;
 
     /**
      * a default constructor that creates an empty Mei instance
@@ -247,14 +246,12 @@ public class Mei extends meico.xml.XmlBase implements Cloneable {
     }
 
     /**
-     * adds expansions for ornaments with graceNotes for the audio rendering only
+     * adds expansions for ornaments with graceNotes to 'this' (no copy is created)
+     * Be aware: by calling this function multiple time, the ornaments will be expanded each time again as well
+     * @return 'this' Mei for chaining
      */
     public Mei expandOrnaments() {
-        if(areOrnamentsExpanded)
-            return this;
-
-        areOrnamentsExpanded = true;
-        return (new MeiOrnamentExpander()).expandOrnaments(this);
+        return (new OrnamentExpander()).expandOrnaments(this);
     }
 
     /**

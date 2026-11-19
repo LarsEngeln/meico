@@ -14,7 +14,7 @@
 
 % trill
 # trill
-|: 0 1 :|
+|: 1 0 :|
 
 % upper turn
 # upper turn
@@ -34,7 +34,7 @@
 
 % trill with mordent
 # trill with mordent
-|: 0 1 :| 0 -1 0
+|: 1 0 :| -1 0
 
 % double cadence lower prefix, 2nd line with "ornamentPrecomp.." is not needed for matching, as the first line is already sufficient for resolving (lowercase, space separated version of the SMuFL glyph name)
 # double cadence lower prefix
