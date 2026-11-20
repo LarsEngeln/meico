@@ -76,7 +76,19 @@ public class Helper {
         }
         return null;
     }
-    
+
+    /**
+     * Finds an element in the subtree of the node's parent by its ID.
+     * @param node the node whose sibling is searched
+     * @param id the ID of the sibling to find
+     * @return the matching sibling, or {@code null} if no matching element exists
+     */
+    public static Element findSibling(Element node, String id) {
+        if (node == null || id == null)
+            return null;
+        return Helper.getFirstDescendantById(Helper.getParentElement(node), id);
+    }
+
     /**
      * get the first child of an xml element
      * @param ofThis
